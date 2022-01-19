@@ -1,0 +1,256 @@
+
+#!/usr/bin/env python3
+
+import argparse
+import json
+import shutil
+import socket
+import sys
+import pathlib
+
+if sys.version_info < (3, 9):
+    print('Python version >= 3.9 is required!')
+    exit(1)
+
+DOTPKG_MANIFEST_NAME = 'dotpkg.json'
+IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git'}
+
+# Helpers
+
+RED_COLOR = '\033[91m'
+YELLOW_COLOR = '\033[93m'
+BLUE_COLOR = '\033[36m'
+GREEN_COLOR = '\033[92m'
+PINK_COLOR = '\033[95m'
+CLEAR_COLOR = '\033[0m'
+
+def message(color: str, msg: str):
+    print(f'{color}==> {msg}{CLEAR_COLOR}')
+
+def error(msg: str):
+    message(RED_COLOR, msg)
+    exit(1)
+
+def warn(msg: str):
+    message(YELLOW_COLOR, msg)
+
+def info(msg: str):
+    message(BLUE_COLOR, msg)
+
+def success(msg: str):
+    message(GREEN_COLOR, msg)
+
+def prompt(msg: str, options: list[str]):
+    aliases = {}
+    option_strs = []
+
+    if options:
+        for option in options:
+            i = 1
+            while option[:i] in aliases.keys():
+                i += 1
+            aliases[option[:i]] = option
+            option_strs.append(f'[{option[:i]}]{option[i:]}')
+
+    options_str = f" - {', '.join(option_strs)}"
+    response = input(f"{PINK_COLOR}==> {msg}{options_str} {CLEAR_COLOR}")
+
+    return aliases.get(response, response)
+
+def confirm(msg: str):
+    response = prompt(msg, ['yes', 'no'])
+    return response == 'yes'
+
+# Manifest resolution
+
+MANIFEST_VARS = {
+    '${home}': str(pathlib.Path.home().resolve()),
+    '${hostname}': socket.gethostname()
+}
+
+def resolve_manifest_str(s: str) -> str:
+    resolved = s
+    for key, value in MANIFEST_VARS.items():
+        resolved = resolved.replace(key, value)
+    return resolved
+
+def find_target_dir(manifest: dict) -> pathlib.Path:
+    raw_dirs = manifest.get('targetDir', ['${home}'])
+
+    for raw_dir in raw_dirs:
+        path = pathlib.Path(resolve_manifest_str(raw_dir))
+        if path.is_dir() and path.exists():
+            return path
+
+    error(f'No suitable targetDir found in {raw_dirs}!')
+
+def unsatisfied_path_requirements(manifest: dict) -> list[str]:
+    for requirement in manifest.get('requiresOnPath', []):
+        if not shutil.which(requirement):
+            yield requirement
+
+# Installation/uninstallation
+
+def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path):
+    for src_path in src_dir.iterdir():
+        name = src_path.name
+        target_path = target_dir / name
+
+        if name not in IGNORED_NAMES:
+            # We only descend into existing directories that are not Git repos
+            if target_path.exists() and not target_path.is_symlink() and target_path.is_dir() and not (target_path / '.git').exists():
+                yield from find_link_candidates(src_path, target_path)
+            else:
+                yield src_path, target_path
+
+def copy(src_path: pathlib.Path, target_path: pathlib.Path, dry_run: bool):
+    print(f'Copying {src_path} to {target_path}')
+    if not dry_run:
+        shutil.copy(src_path, target_path)
+
+def move(src_path: pathlib.Path, target_path: pathlib.Path, dry_run: bool):
+    print(f'Moving {src_path} to {target_path}')
+    if not dry_run:
+        shutil.move(src_path, target_path)
+
+def add_link(src_path: pathlib.Path, target_path: pathlib.Path, dry_run: bool):
+    print(f'Linking {target_path} -> {src_path}')
+    if not dry_run:
+        target_path.symlink_to(src_path)
+
+def remove(target_path: pathlib.Path, dry_run: bool):
+    print(f'Removing {target_path}')
+    if not dry_run:
+        target_path.unlink()
+
+def install(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
+    target_dir = find_target_dir(manifest)
+    host_specific_patterns = manifest.get('hostSpecificFiles', [])
+    host_specific_includes = {
+        src_dir / resolve_manifest_str(p)
+        for p in host_specific_patterns
+    }
+    host_specific_ignores = {
+        i
+        for p in host_specific_patterns
+        for i in src_dir.glob(p.replace('${hostname}', '*'))
+        if i not in host_specific_includes and not i.name.endswith('.private')
+    }
+    custom_ignores = {
+        i
+        for p in manifest.get('ignoredFiles', [])
+        for i in src_dir.glob(p)
+    }
+    ignores = host_specific_ignores.union(custom_ignores)
+
+    for src_path, target_path in find_link_candidates(src_dir, target_dir):
+        if src_path in ignores:
+            print(f'Ignoring {src_path}')
+        elif target_path.exists():
+            if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
+                def backup():
+                    move(target_path, target_path.with_name(f'{target_path.name}.backup'), dry_run)
+                    add_link(src_path, target_path, dry_run)
+
+                def overwrite():
+                    remove(target_path, dry_run)
+                    add_link(src_path, target_path, dry_run)
+
+                def skip():
+                    print(f'Skipping {target_path}')
+
+                options = {
+                    'backup': backup,
+                    'overwrite': overwrite,
+                    'skip': skip
+                }
+
+                response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(options.keys()))
+                options.get(response, skip)()
+            else:
+                print(f'Skipping {target_path} (already linked)')
+        else:
+            add_link(src_path, target_path, dry_run)
+
+def uninstall(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
+    target_dir = find_target_dir(manifest)
+    for src_path, target_path in find_link_candidates(src_dir, target_dir):
+        if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
+            remove(target_path, dry_run)
+        else:
+            print(f'Skipping {target_path} (not a link into the dotpkg)')
+
+# Dotpkg resolution
+
+def cwd_dotpkgs() -> list[str]:
+    return [
+        p.name
+        for p in pathlib.Path.cwd().iterdir()
+        if p.is_dir() and not p.name in IGNORED_NAMES
+    ]
+
+def resolve_dotpkgs(dotpkgs: list[str]) -> list[pathlib.Path]:
+    for dotpkg in dotpkgs:
+        path = pathlib.Path.cwd() / dotpkg
+        manifest_path = path / DOTPKG_MANIFEST_NAME
+
+        if not path.exists() or not path.is_dir():
+            error(f"Dotpkg '{dotpkg}' does not exist in cwd!")
+        if not manifest_path.exists():
+            error(f"Missing dotpkg.json for '{dotpkg}'!")
+
+        with open(str(manifest_path), 'r') as f:
+            manifest = json.loads(f.read())
+
+        yield path, manifest
+
+# CLI
+
+def install_cmd(dotpkgs: list[str], dry_run: bool):
+    check_path = False
+
+    if not dotpkgs:
+        dotpkgs = cwd_dotpkgs()
+        check_path = True
+        if not confirm(f"Install dotpkgs {', '.join(dotpkgs)}?"):
+            print('Cancelling')
+            exit(0)
+
+    for path, manifest in resolve_dotpkgs(dotpkgs):
+        name = manifest.get('name', path.name)
+        description = manifest.get('description', '')
+        unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
+
+        if not check_path or not unsatisfied_reqs:
+            info(f'Installing {name} ({description})...')
+            install(path, manifest, dry_run)
+        else:
+            warn(f"Skipping {name} (could not find {', '.join(unsatisfied_reqs)} on PATH)")
+
+def uninstall_cmd(dotpkgs: list[str], dry_run: bool):
+    if not dotpkgs:
+        dotpkgs = cwd_dotpkgs()
+        if not confirm(f"Uninstall dotpkgs {', '.join(dotpkgs)}?"):
+            print('Cancelling')
+            exit(0)
+
+    for path, manifest in resolve_dotpkgs(dotpkgs):
+        info(f"Uninstall {manifest['name']} ({manifest['description']})...")
+        uninstall(path, manifest, dry_run)
+
+COMMANDS = {
+    'install': install_cmd,
+    'uninstall': uninstall_cmd
+}
+
+def main():
+    parser = argparse.ArgumentParser(description='Dotfile package manager')
+    parser.add_argument('--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
+    parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
+    parser.add_argument('dotpkgs', nargs=argparse.REMAINDER, help='The dotpkgs to install (all by default)')
+
+    args = parser.parse_args()
+    COMMANDS[args.command](args.dotpkgs, args.dry_run)
+
+if __name__ == '__main__':
+    main()
