@@ -234,7 +234,7 @@ def uninstall_cmd(dotpkgs: list[str], dry_run: bool):
             exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
-        info(f"Uninstall {manifest['name']} ({manifest['description']})...")
+        info(f"Uninstalling {manifest['name']} ({manifest['description']})...")
         uninstall(path, manifest, dry_run)
 
 COMMANDS = {
