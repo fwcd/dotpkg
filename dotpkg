@@ -185,7 +185,7 @@ def cwd_dotpkgs() -> list[str]:
     return [
         p.name
         for p in pathlib.Path.cwd().iterdir()
-        if p.is_dir() and not p.name in IGNORED_NAMES
+        if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
     ]
 
 def resolve_dotpkgs(dotpkgs: list[str]) -> list[pathlib.Path]:
