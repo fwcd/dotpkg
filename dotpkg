@@ -12,7 +12,7 @@ if sys.version_info < (3, 9):
     exit(1)
 
 DOTPKG_MANIFEST_NAME = 'dotpkg.json'
-IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git'}
+IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git', '.DS_Store'}
 
 # Helpers
 
