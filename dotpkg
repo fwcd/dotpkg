@@ -90,9 +90,9 @@ def unsatisfied_path_requirements(manifest: dict) -> list[str]:
 
 # Installation/uninstallation
 
-def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path):
+def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, renamer = lambda n: n):
     for src_path in src_dir.iterdir():
-        name = src_path.name
+        name = renamer(src_path.name)
         target_path = target_dir / name
 
         if name not in IGNORED_NAMES:
@@ -141,8 +141,14 @@ def install(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
         for i in src_dir.glob(p)
     }
     ignores = host_specific_ignores.union(custom_ignores)
+    renames = manifest.get('renames', {})
+    
+    def renamer(name):
+        for from, to in renames:
+            name = name.replace(resolve_manifest_str(from), resolve_manifest_str(to))
+        return name
 
-    for src_path, target_path in find_link_candidates(src_dir, target_dir):
+    for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
         if src_path in ignores:
             print(f'Ignoring {src_path}')
         elif target_path.exists():
