@@ -43,3 +43,16 @@ For example, a package that manages configurations for Visual Studio Code could 
 ```
 
 A full JSON schema for the `dotpkg.json` manifests can be found [here](dotpkg.schema.json).
+
+> Note that you can add the schema to your VSCode settings to get autocompletion in `dotpkg.json` files by specifying `json.schemas`:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["dotpkg.json"],
+      "url": "https://raw.githubusercontent.com/fwcd/dotpkg/main/dotpkg.schema.json"
+    }
+  ]
+}
+```
