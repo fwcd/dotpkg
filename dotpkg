@@ -144,8 +144,8 @@ def install(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
     renames = manifest.get('renames', {})
     
     def renamer(name):
-        for from, to in renames:
-            name = name.replace(resolve_manifest_str(from), resolve_manifest_str(to))
+        for pat, s in renames.items():
+            name = name.replace(resolve_manifest_str(pat), resolve_manifest_str(s))
         return name
 
     for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
