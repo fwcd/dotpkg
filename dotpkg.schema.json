@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "Dotpkg manifest format",
+  "description": "A configuration file for describing dotfile packages (dotpkg.json)",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the dotpkg (usually a short, kebab-cases identifier e.g. referring to the program configured). Default: Name of the parent dir"
+    },
+    "description": {
+      "type": "string",
+      "description": "A long, human-readable description of what this dotpkg contains (e.g. 'configurations for xyz'). Default: \"\""
+    },
+    "requiresOnPath": {
+      "type": "array",
+      "description": "Binaries requires on the PATH for the package to be automatically installed when invoking 'dotpkg install' (usually the program configured, e.g. 'code'). Default: []",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hostSpecificFiles": {
+      "type": "array",
+      "description": "A list of file (glob) patterns that are considered to be host-specific. Files that are irrelevant to the current host (e.g. those for other hosts) will be ignored. Each pattern should include '${hostname}' to refer to such files. Default: []",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ignoredFiles": {
+      "type": "array",
+      "description": "A list of file (glob) patterns that are to be ignored, i.e. not linked. This could e.g. be useful to store generic scripts in the dotpkg that are not intended to be linked into some config directory. Default: []",
+      "items": {
+        "type": "string"
+      }
+    },
+    "renames": {
+      "type": "object",
+      "description": "A set of rename rules that are applied to the symlink names. If empty or left unspecified, the file names are the same as their originals. Default: {}",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "targetDir": {
+      "type": "array",
+      "description": "The target directory that the files from the dotpkg should be linked into. The first existing path from this list will be chosen (this is useful for cross-platform dotpkgs, since some programs place their configs in an OS-specific location). Default: [\"${home}\"]",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

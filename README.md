@@ -41,3 +41,5 @@ For example, a package that manages configurations for Visual Studio Code could 
   ]
 }
 ```
+
+A full JSON schema for the `dotpkg.json` manifests can be found [here](dotpkg.schema.json).
