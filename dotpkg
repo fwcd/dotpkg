@@ -89,6 +89,9 @@ def unsatisfied_path_requirements(manifest: dict) -> list[str]:
         if not shutil.which(requirement):
             yield requirement
 
+def manifest_name(path: pathlib.Path, manifest: dict) -> str:
+    return manifest.get('name', path.name)
+
 # Installation/uninstallation
 
 def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, renamer = lambda n: n):
@@ -225,7 +228,7 @@ def install_cmd(dotpkgs: list[str], dry_run: bool):
             exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
-        name = manifest.get('name', path.name)
+        name = manifest_name(path, manifest)
         description = manifest.get('description', '')
         unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
         supported_platforms = set(manifest.get('platforms', []))
@@ -248,7 +251,7 @@ def uninstall_cmd(dotpkgs: list[str], dry_run: bool):
             exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
-        info(f"Uninstalling {manifest['name']} ({manifest['description']})...")
+        info(f"Uninstalling {manifest_name(path, manifest)} ({manifest.get('description', '')})...")
         uninstall(path, manifest, dry_run)
 
 COMMANDS = {
