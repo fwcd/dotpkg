@@ -19,7 +19,22 @@
       "default": [],
       "items": {
         "type": "string"
-      }
+      },
+      "uniqueItems": true
+    },
+    "platforms": {
+      "type": "array",
+      "description": "The platforms that this dotpkg is intended for. An empty array (the default) means support for all platforms. Only relevant if 'dotpkg install' is invoked without arguments.",
+      "default": [],
+      "items": {
+        "type": "string",
+        "examples": [
+          "linux",
+          "darwin",
+          "windows"
+        ]
+      },
+      "uniqueItems": true
     },
     "hostSpecificFiles": {
       "type": "array",
@@ -27,7 +42,8 @@
       "default": [],
       "items": {
         "type": "string"
-      }
+      },
+      "uniqueItems": true
     },
     "ignoredFiles": {
       "type": "array",
@@ -35,7 +51,8 @@
       "default": [],
       "items": {
         "type": "string"
-      }
+      },
+      "uniqueItems": true
     },
     "renames": {
       "type": "object",
@@ -51,7 +68,8 @@
       "default": ["${home}"],
       "items": {
         "type": "string"
-      }
+      },
+      "uniqueItems": true
     }
   }
 }
