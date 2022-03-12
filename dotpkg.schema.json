@@ -15,7 +15,7 @@
     },
     "requiresOnPath": {
       "type": "array",
-      "description": "Binaries requires on the PATH for the package to be automatically installed when invoking 'dotpkg install' (usually the program configured, e.g. 'code').",
+      "description": "Binaries requires on the PATH for the package to be automatically installed when invoking 'dotpkg install' (usually the program configured, e.g. 'code'). Only relevant if 'dotpkg install' is invoked without arguments, otherwise the package will always be installed.",
       "default": [],
       "items": {
         "type": "string"
