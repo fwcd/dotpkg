@@ -39,7 +39,8 @@ For example, a package that manages configurations for Visual Studio Code could 
   "requiresOnPath": ["code"],
   "targetDir": [
     "${home}/.config/Code",
-    "${home}/Library/Application Support/Code"
+    "${home}/Library/Application Support/Code",
+    "${home}/AppData/Roaming/Code"
   ]
 }
 ```
