@@ -26,6 +26,8 @@ A minimal `dotpkg.json` is structured as follows:
 
 Navigating into `dotfiles` and running `dotpkg install my-package` will then symlink `.some-dotfile-one` and `.some-dotfile-two` into your home directory.
 
+> Note that when running on Windows, unprivileged users might not be able to create symlinks, a feature that `dotpkg` relies on. Enabling `Developer Mode` in your Windows Settings (from an administrator account) will permit this. Also, you may need to substitute `python3 [path/to/dotpkg]` for `dotpkg` since Windows does not support Unix-style shebangs.
+
 Optionally, you can specify keys such as `requiresOnPath` too, which will only install the package if a given binary is found on your `PATH` (useful if your config targets some application). Additionally, `targetDir` configures the search path to symlink the files into some other directory than your home (`dotpkg` will use the first directory that exists, this is useful to cross-platform packages).
 
 For example, a package that manages configurations for Visual Studio Code could look like this:
