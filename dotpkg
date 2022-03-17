@@ -22,6 +22,7 @@ IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git', '.DS_Store'}
 RED_COLOR = '\033[91m'
 YELLOW_COLOR = '\033[93m'
 BLUE_COLOR = '\033[36m'
+GRAY_COLOR = '\033[90m'
 GREEN_COLOR = '\033[92m'
 PINK_COLOR = '\033[95m'
 CLEAR_COLOR = '\033[0m'
@@ -46,6 +47,9 @@ def info(msg: str):
 
 def success(msg: str):
     message(GREEN_COLOR, msg)
+
+def note(msg: str):
+    print(f'{GRAY_COLOR}{msg}{CLEAR_COLOR}')
 
 def prompt(msg: str, choices: list[str], default: str, opts: Options):
     if opts.assume_yes:
@@ -164,7 +168,7 @@ def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
 
     for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
         if src_path in ignores:
-            print(f'Ignoring {src_path}')
+            note(f'Ignoring {src_path}')
         elif target_path.exists():
             if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
                 def backup():
@@ -176,7 +180,7 @@ def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
                     add_link(src_path, target_path, opts)
 
                 def skip():
-                    print(f'Skipping {target_path}')
+                    note(f'Skipping {target_path}')
 
                 options = {
                     'backup': backup,
@@ -187,7 +191,7 @@ def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
                 response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(options.keys()), 'skip', opts)
                 options.get(response, skip)()
             else:
-                print(f'Skipping {target_path} (already linked)')
+                note(f'Skipping {target_path} (already linked)')
         else:
             add_link(src_path, target_path, opts)
 
