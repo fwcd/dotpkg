@@ -59,15 +59,15 @@ def prompt(msg: str, choices: list[str], default: str, opts: Options):
     option_strs = []
 
     if choices:
-        for option in choices:
+        for choice in choices:
             i = 1
-            while option[:i] in aliases.keys():
+            while choice[:i] in aliases.keys():
                 i += 1
-            aliases[option[:i]] = option
-            option_strs.append(f'[{option[:i]}]{option[i:]}')
+            aliases[choice[:i]] = choice
+            option_strs.append(f'[{choice[:i]}]{choice[i:]}')
 
-    options_str = f" - {', '.join(option_strs)}"
-    response = input(f"{PINK_COLOR}==> {msg}{options_str} {CLEAR_COLOR}")
+    choices_str = f" - {', '.join(option_strs)}"
+    response = input(f"{PINK_COLOR}==> {msg}{choices_str} {CLEAR_COLOR}")
 
     return aliases.get(response, response)
 
@@ -182,14 +182,14 @@ def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
                 def skip():
                     note(f'Skipping {target_path}')
 
-                options = {
+                choices = {
                     'backup': backup,
                     'overwrite': overwrite,
                     'skip': skip
                 }
 
-                response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(options.keys()), 'skip', opts)
-                options.get(response, skip)()
+                response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(choices.keys()), 'skip', opts)
+                choices.get(response, skip)()
             else:
                 note(f'Skipping {target_path} (already linked)')
         else:
