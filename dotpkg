@@ -272,7 +272,7 @@ COMMANDS = {
 def main():
     parser = argparse.ArgumentParser(description='Dotfile package manager')
     parser.add_argument('-d', '--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
-    parser.add_argument('-y', '--yes', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
+    parser.add_argument('-y', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
     parser.add_argument('dotpkgs', nargs=argparse.REMAINDER, help='The dotpkgs to install (all by default)')
 
