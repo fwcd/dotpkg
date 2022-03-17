@@ -8,6 +8,8 @@ import sys
 import pathlib
 import platform
 
+from dataclasses import dataclass
+
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
     exit(1)
@@ -23,6 +25,11 @@ BLUE_COLOR = '\033[36m'
 GREEN_COLOR = '\033[92m'
 PINK_COLOR = '\033[95m'
 CLEAR_COLOR = '\033[0m'
+
+@dataclass
+class Options:
+    dry_run: bool
+    assume_yes: bool
 
 def message(color: str, msg: str):
     print(f'{color}==> {msg}{CLEAR_COLOR}')
@@ -40,12 +47,15 @@ def info(msg: str):
 def success(msg: str):
     message(GREEN_COLOR, msg)
 
-def prompt(msg: str, options: list[str]):
+def prompt(msg: str, choices: list[str], default: str, opts: Options):
+    if opts.assume_yes:
+        return default
+
     aliases = {}
     option_strs = []
 
-    if options:
-        for option in options:
+    if choices:
+        for option in choices:
             i = 1
             while option[:i] in aliases.keys():
                 i += 1
@@ -57,8 +67,8 @@ def prompt(msg: str, options: list[str]):
 
     return aliases.get(response, response)
 
-def confirm(msg: str):
-    response = prompt(msg, ['yes', 'no'])
+def confirm(msg: str, opts: Options):
+    response = prompt(msg, ['yes', 'no'], 'yes', opts)
     return response == 'yes'
 
 # Manifest resolution
@@ -106,27 +116,27 @@ def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, rename
             else:
                 yield src_path, target_path
 
-def copy(src_path: pathlib.Path, target_path: pathlib.Path, dry_run: bool):
+def copy(src_path: pathlib.Path, target_path: pathlib.Path, opts: Options):
     print(f'Copying {src_path} to {target_path}')
-    if not dry_run:
+    if not opts.dry_run:
         shutil.copy(src_path, target_path)
 
-def move(src_path: pathlib.Path, target_path: pathlib.Path, dry_run: bool):
+def move(src_path: pathlib.Path, target_path: pathlib.Path, opts: Options):
     print(f'Moving {src_path} to {target_path}')
-    if not dry_run:
+    if not opts.dry_run:
         shutil.move(src_path, target_path)
 
-def add_link(src_path: pathlib.Path, target_path: pathlib.Path, dry_run: bool):
+def add_link(src_path: pathlib.Path, target_path: pathlib.Path, opts: Options):
     print(f'Linking {target_path} -> {src_path}')
-    if not dry_run:
+    if not opts.dry_run:
         target_path.symlink_to(src_path)
 
-def remove(target_path: pathlib.Path, dry_run: bool):
+def remove(target_path: pathlib.Path, opts: Options):
     print(f'Removing {target_path}')
-    if not dry_run:
+    if not opts.dry_run:
         target_path.unlink()
 
-def install(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
+def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
     host_specific_patterns = manifest.get('hostSpecificFiles', [])
     host_specific_includes = {
@@ -158,12 +168,12 @@ def install(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
         elif target_path.exists():
             if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
                 def backup():
-                    move(target_path, target_path.with_name(f'{target_path.name}.backup'), dry_run)
-                    add_link(src_path, target_path, dry_run)
+                    move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
+                    add_link(src_path, target_path, opts)
 
                 def overwrite():
-                    remove(target_path, dry_run)
-                    add_link(src_path, target_path, dry_run)
+                    remove(target_path, opts)
+                    add_link(src_path, target_path, opts)
 
                 def skip():
                     print(f'Skipping {target_path}')
@@ -174,12 +184,12 @@ def install(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
                     'skip': skip
                 }
 
-                response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(options.keys()))
+                response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(options.keys()), 'skip', opts)
                 options.get(response, skip)()
             else:
                 print(f'Skipping {target_path} (already linked)')
         else:
-            add_link(src_path, target_path, dry_run)
+            add_link(src_path, target_path, opts)
 
 def uninstall(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
     target_dir = find_target_dir(manifest)
@@ -215,7 +225,7 @@ def resolve_dotpkgs(dotpkgs: list[str]) -> list[pathlib.Path]:
 
 # CLI
 
-def install_cmd(dotpkgs: list[str], dry_run: bool):
+def install_cmd(dotpkgs: list[str], opts: Options):
     check_path = False
     check_platforms = False
 
@@ -223,7 +233,7 @@ def install_cmd(dotpkgs: list[str], dry_run: bool):
         dotpkgs = cwd_dotpkgs()
         check_path = True
         check_platforms = True
-        if not confirm(f"Install dotpkgs {', '.join(dotpkgs)}?"):
+        if not confirm(f"Install dotpkgs {', '.join(dotpkgs)}?", opts):
             print('Cancelling')
             exit(0)
 
@@ -237,22 +247,22 @@ def install_cmd(dotpkgs: list[str], dry_run: bool):
         if not supported_platforms or (our_platform in supported_platforms):
             if not check_path or not unsatisfied_reqs:
                 info(f'Installing {name} ({description})...')
-                install(path, manifest, dry_run)
+                install(path, manifest, opts)
             else:
                 warn(f"Skipping {name} (could not find {', '.join(unsatisfied_reqs)} on PATH)")
         else:
             warn(f"Skipping {name} (platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))})")
 
-def uninstall_cmd(dotpkgs: list[str], dry_run: bool):
+def uninstall_cmd(dotpkgs: list[str], opts: Options):
     if not dotpkgs:
         dotpkgs = cwd_dotpkgs()
-        if not confirm(f"Uninstall dotpkgs {', '.join(dotpkgs)}?"):
+        if not confirm(f"Uninstall dotpkgs {', '.join(dotpkgs)}?", opts):
             print('Cancelling')
             exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
         info(f"Uninstalling {manifest_name(path, manifest)} ({manifest.get('description', '')})...")
-        uninstall(path, manifest, dry_run)
+        uninstall(path, manifest, opts)
 
 COMMANDS = {
     'install': install_cmd,
@@ -261,12 +271,14 @@ COMMANDS = {
 
 def main():
     parser = argparse.ArgumentParser(description='Dotfile package manager')
-    parser.add_argument('--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
+    parser.add_argument('-d', '--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
+    parser.add_argument('-y', '--yes', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
     parser.add_argument('dotpkgs', nargs=argparse.REMAINDER, help='The dotpkgs to install (all by default)')
 
     args = parser.parse_args()
-    COMMANDS[args.command](args.dotpkgs, args.dry_run)
+    opts = Options(dry_run=args.dry_run, assume_yes=args.assume_yes)
+    COMMANDS[args.command](args.dotpkgs, opts)
 
 if __name__ == '__main__':
     main()
