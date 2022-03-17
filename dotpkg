@@ -244,7 +244,7 @@ def install_cmd(dotpkgs: list[str], opts: Options):
         supported_platforms = set(manifest.get('platforms', []))
         our_platform = platform.system().lower()
 
-        if not supported_platforms or (our_platform in supported_platforms):
+        if not check_platforms or not supported_platforms or (our_platform in supported_platforms):
             if not check_path or not unsatisfied_reqs:
                 info(f'Installing {name} ({description})...')
                 install(path, manifest, opts)
