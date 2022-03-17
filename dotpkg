@@ -274,10 +274,14 @@ def main():
     parser.add_argument('-d', '--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
     parser.add_argument('-y', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
-    parser.add_argument('dotpkgs', nargs=argparse.REMAINDER, help='The dotpkgs to install (all by default)')
+    parser.add_argument('dotpkgs', nargs=argparse.ZERO_OR_MORE, help='The dotpkgs to install (all by default)')
 
     args = parser.parse_args()
     opts = Options(dry_run=args.dry_run, assume_yes=args.assume_yes)
+
+    if opts.dry_run:
+        warn("Performing dry run (i.e. not actually changing any files)")
+
     COMMANDS[args.command](args.dotpkgs, opts)
 
 if __name__ == '__main__':
