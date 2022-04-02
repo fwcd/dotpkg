@@ -96,6 +96,11 @@ def find_target_dir(manifest: dict) -> pathlib.Path:
         if path.is_dir() and path.exists():
             return path
 
+    if manifest.get('createTargetDirIfNeeded', False) and raw_dirs:
+        path = pathlib.Path(resolve_manifest_str(raw_dirs[0]))
+        path.mkdir(parents=True)
+        return path
+
     error(f'No suitable targetDir found in {raw_dirs}!')
 
 def unsatisfied_path_requirements(manifest: dict) -> list[str]:

@@ -70,6 +70,11 @@
         "type": "string"
       },
       "uniqueItems": true
+    },
+    "createTargetDirIfNeeded": {
+      "type": "boolean",
+      "description": "Creates the first directory from the 'targetDir' list if none exists.",
+      "default": false
     }
   }
 }
