@@ -5,10 +5,10 @@ import json
 import shutil
 import socket
 import sys
-import pathlib
 import platform
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable
 
 if sys.version_info < (3, 9):
@@ -79,7 +79,7 @@ def confirm(msg: str, opts: Options):
 # Manifest resolution
 
 MANIFEST_VARS = {
-    '${home}': str(pathlib.Path.home().resolve()),
+    '${home}': str(Path.home().resolve()),
     '${hostname}': socket.gethostname()
 }
 
@@ -89,16 +89,16 @@ def resolve_manifest_str(s: str) -> str:
         resolved = resolved.replace(key, value)
     return resolved
 
-def find_target_dir(manifest: dict) -> pathlib.Path:
+def find_target_dir(manifest: dict) -> Path:
     raw_dirs = manifest.get('targetDir', ['${home}'])
 
     for raw_dir in raw_dirs:
-        path = pathlib.Path(resolve_manifest_str(raw_dir))
+        path = Path(resolve_manifest_str(raw_dir))
         if path.is_dir() and path.exists():
             return path
 
     if manifest.get('createTargetDirIfNeeded', False) and raw_dirs:
-        path = pathlib.Path(resolve_manifest_str(raw_dirs[0]))
+        path = Path(resolve_manifest_str(raw_dirs[0]))
         path.mkdir(parents=True)
         return path
 
@@ -109,12 +109,12 @@ def unsatisfied_path_requirements(manifest: dict) -> Iterable[str]:
         if not shutil.which(requirement):
             yield requirement
 
-def manifest_name(path: pathlib.Path, manifest: dict) -> str:
+def manifest_name(path: Path, manifest: dict) -> str:
     return manifest.get('name', path.name)
 
 # Installation/uninstallation
 
-def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, renamer = lambda name: name):
+def find_link_candidates(src_dir: Path, target_dir: Path, renamer = lambda name: name):
     for src_path in src_dir.iterdir():
         name = renamer(src_path.name)
         target_path = target_dir / name
@@ -126,27 +126,27 @@ def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, rename
             else:
                 yield src_path, target_path
 
-def copy(src_path: pathlib.Path, target_path: pathlib.Path, opts: Options):
+def copy(src_path: Path, target_path: Path, opts: Options):
     print(f'Copying {src_path} to {target_path}')
     if not opts.dry_run:
         shutil.copy(src_path, target_path)
 
-def move(src_path: pathlib.Path, target_path: pathlib.Path, opts: Options):
+def move(src_path: Path, target_path: Path, opts: Options):
     print(f'Moving {src_path} to {target_path}')
     if not opts.dry_run:
         shutil.move(src_path, target_path)
 
-def add_link(src_path: pathlib.Path, target_path: pathlib.Path, opts: Options):
+def add_link(src_path: Path, target_path: Path, opts: Options):
     print(f'Linking {target_path} -> {src_path}')
     if not opts.dry_run:
         target_path.symlink_to(src_path)
 
-def remove(target_path: pathlib.Path, opts: Options):
+def remove(target_path: Path, opts: Options):
     print(f'Removing {target_path}')
     if not opts.dry_run:
         target_path.unlink()
 
-def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
+def install(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
     host_specific_patterns = manifest.get('hostSpecificFiles', [])
     host_specific_includes = {
@@ -201,7 +201,7 @@ def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
         else:
             add_link(src_path, target_path, opts)
 
-def uninstall(src_dir: pathlib.Path, manifest: dict, opts: Options):
+def uninstall(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
     for src_path, target_path in find_link_candidates(src_dir, target_dir):
         if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
@@ -214,13 +214,13 @@ def uninstall(src_dir: pathlib.Path, manifest: dict, opts: Options):
 def cwd_dotpkgs() -> list[str]:
     return [
         p.name
-        for p in pathlib.Path.cwd().iterdir()
+        for p in Path.cwd().iterdir()
         if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
     ]
 
-def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[pathlib.Path, dict]]:
+def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict]]:
     for dotpkg in dotpkgs:
-        path = pathlib.Path.cwd() / dotpkg
+        path = Path.cwd() / dotpkg
         manifest_path = path / DOTPKG_MANIFEST_NAME
 
         if not path.exists() or not path.is_dir():
