@@ -7,6 +7,7 @@ import socket
 import sys
 import platform
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -114,7 +115,7 @@ def manifest_name(path: Path, manifest: dict) -> str:
 
 # Installation/uninstallation
 
-def find_link_candidates(src_dir: Path, target_dir: Path, renamer = lambda name: name):
+def find_link_candidates(src_dir: Path, target_dir: Path, renamer: Callable[[str], str] = lambda name: name) -> Iterable[tuple[Path, Path]]:
     for src_path in src_dir.iterdir():
         name = renamer(src_path.name)
         target_path = target_dir / name
@@ -167,7 +168,7 @@ def install(src_dir: Path, manifest: dict, opts: Options):
     ignores = host_specific_ignores.union(custom_ignores)
     renames = manifest.get('renames', {})
     
-    def renamer(name):
+    def renamer(name: str) -> str:
         for pat, s in renames.items():
             name = name.replace(resolve_manifest_str(pat), resolve_manifest_str(s))
         return name
