@@ -9,6 +9,7 @@ import pathlib
 import platform
 
 from dataclasses import dataclass
+from typing import Iterable
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
@@ -103,7 +104,7 @@ def find_target_dir(manifest: dict) -> pathlib.Path:
 
     error(f'No suitable targetDir found in {raw_dirs}!')
 
-def unsatisfied_path_requirements(manifest: dict) -> list[str]:
+def unsatisfied_path_requirements(manifest: dict) -> Iterable[str]:
     for requirement in manifest.get('requiresOnPath', []):
         if not shutil.which(requirement):
             yield requirement
@@ -113,7 +114,7 @@ def manifest_name(path: pathlib.Path, manifest: dict) -> str:
 
 # Installation/uninstallation
 
-def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, renamer = lambda n: n):
+def find_link_candidates(src_dir: pathlib.Path, target_dir: pathlib.Path, renamer = lambda name: name):
     for src_path in src_dir.iterdir():
         name = renamer(src_path.name)
         target_path = target_dir / name
@@ -200,11 +201,11 @@ def install(src_dir: pathlib.Path, manifest: dict, opts: Options):
         else:
             add_link(src_path, target_path, opts)
 
-def uninstall(src_dir: pathlib.Path, manifest: dict, dry_run: bool):
+def uninstall(src_dir: pathlib.Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
     for src_path, target_path in find_link_candidates(src_dir, target_dir):
         if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
-            remove(target_path, dry_run)
+            remove(target_path, opts)
         else:
             print(f'Skipping {target_path} (not a link into the dotpkg)')
 
@@ -217,7 +218,7 @@ def cwd_dotpkgs() -> list[str]:
         if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
     ]
 
-def resolve_dotpkgs(dotpkgs: list[str]) -> list[pathlib.Path]:
+def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[pathlib.Path, dict]]:
     for dotpkg in dotpkgs:
         path = pathlib.Path.cwd() / dotpkg
         manifest_path = path / DOTPKG_MANIFEST_NAME
