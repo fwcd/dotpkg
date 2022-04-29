@@ -7,10 +7,9 @@ import socket
 import sys
 import platform
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
