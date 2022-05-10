@@ -73,6 +73,5 @@ Alternatively, you can specify the schema individually in each `dotpkg.json`:
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/fwcd/dotpkg/main/dotpkg.schema.json"
-  // ...
 }
 ```
