@@ -67,3 +67,12 @@ A full JSON schema for the `dotpkg.json` manifests can be found [here](dotpkg.sc
   ]
 }
 ```
+
+Alternatively, you can specify the schema individually in each `dotpkg.json`:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/fwcd/dotpkg/main/dotpkg.schema.json"
+  // ...
+}
+```
