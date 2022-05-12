@@ -16,7 +16,7 @@ if sys.version_info < (3, 9):
     sys.exit(1)
 
 DOTPKG_MANIFEST_NAME = 'dotpkg.json'
-IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git', '.DS_Store'}
+IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git', '.gitignore', '.DS_Store'}
 
 # Helpers
 
