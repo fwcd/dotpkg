@@ -278,10 +278,11 @@ def uninstall(src_dir: Path, manifest: dict, opts: Options):
     install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
     install = installs.get(install_key, {})
 
-    target_dir = Path(install.get('targetDir', str(find_target_dir(manifest))))
+    target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
+    paths = [(None, Path(path)) for path in install['paths']] if 'paths' in install else find_link_candidates(src_dir, target_dir)
 
-    for src_path, target_path in find_link_candidates(src_dir, target_dir):
-        if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
+    for src_path, target_path in paths:
+        if target_path.is_symlink() and (not src_path or target_path.resolve() == src_path.resolve()):
             remove(target_path, opts)
         else:
             print(f'Skipping {target_path} (not a link into the dotpkg)')
