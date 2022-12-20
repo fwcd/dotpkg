@@ -170,6 +170,7 @@ def read_install_manifest(opts: Options) -> dict:
     except FileNotFoundError:
         manifest = None
     return manifest or {
+        '$schema': 'https://raw.githubusercontent.com/fwcd/dotpkg/main/schemas/installs.schema.json',
         'version': INSTALL_MANIFEST_VERSION,
     }
 
