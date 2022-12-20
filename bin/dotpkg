@@ -102,6 +102,26 @@ def resolve_manifest_str(s: str) -> str:
         resolved = resolved.replace(key, value)
     return resolved
 
+def resolve_ignores(src_dir: Path, manifest: dict) -> set[Path]:
+    host_specific_patterns = manifest.get('hostSpecificFiles', [])
+    host_specific_includes = {
+        src_dir / resolve_manifest_str(p)
+        for p in host_specific_patterns
+    }
+    host_specific_ignores = {
+        i
+        for p in host_specific_patterns
+        for i in src_dir.glob(p.replace('${hostname}', '*'))
+        if i not in host_specific_includes and not i.name.endswith('.private')
+    }
+    custom_ignores = {
+        i
+        for p in manifest.get('ignoredFiles', [])
+        for i in src_dir.glob(p)
+    }
+    ignores = host_specific_ignores.union(custom_ignores)
+    return ignores
+
 def find_target_dir(manifest: dict) -> Path:
     raw_dirs = manifest.get('targetDir', ['${home}'])
 
@@ -201,23 +221,7 @@ def install(src_dir: Path, manifest: dict, opts: Options):
             else:
                 warn(f'This will leave the installed files at {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}')
 
-    host_specific_patterns = manifest.get('hostSpecificFiles', [])
-    host_specific_includes = {
-        src_dir / resolve_manifest_str(p)
-        for p in host_specific_patterns
-    }
-    host_specific_ignores = {
-        i
-        for p in host_specific_patterns
-        for i in src_dir.glob(p.replace('${hostname}', '*'))
-        if i not in host_specific_includes and not i.name.endswith('.private')
-    }
-    custom_ignores = {
-        i
-        for p in manifest.get('ignoredFiles', [])
-        for i in src_dir.glob(p)
-    }
-    ignores = host_specific_ignores.union(custom_ignores)
+    ignores = resolve_ignores(src_dir, manifest)
     renames = manifest.get('renames', {})
 
     def renamer(name: str) -> str:
