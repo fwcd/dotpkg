@@ -38,7 +38,7 @@ def message(msg: str, color: str):
 
 def error(msg: str):
     message(msg, RED_COLOR)
-    exit(1)
+    sys.exit(1)
 
 def warn(msg: str):
     message(msg, YELLOW_COLOR)
@@ -245,7 +245,7 @@ def install_cmd(dotpkgs: list[str], opts: Options):
         check_platforms = True
         if not confirm(f"Install dotpkgs {', '.join(dotpkgs)}?", opts):
             print('Cancelling')
-            exit(0)
+            sys.exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
         name = manifest_name(path, manifest)
@@ -268,7 +268,7 @@ def uninstall_cmd(dotpkgs: list[str], opts: Options):
         dotpkgs = cwd_dotpkgs()
         if not confirm(f"Uninstall dotpkgs {', '.join(dotpkgs)}?", opts):
             print('Cancelling')
-            exit(0)
+            sys.exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
         info(f"Uninstalling {manifest_name(path, manifest)} ({manifest.get('description', '')})...")
