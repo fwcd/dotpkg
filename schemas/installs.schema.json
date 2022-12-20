@@ -8,20 +8,11 @@
       "type": "number",
       "description": "The version of the install manifest.",
       "default": 0
-    },
-    "installs": {
-      "type": "object",
-      "description": "The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).",
-      "additionalProperties": {
-        "type": "object",
-        "description": "An installed dotpkg.",
-        "properties": {
-          "targetDir": {
-            "type": "string",
-            "description": "The installation path of the dotpkg."
-          }
-        }
-      }
     }
-  }
+  },
+  "anyOf": [
+    {
+      "$ref": "installs.v1.schema.json"
+    }
+  ]
 }
