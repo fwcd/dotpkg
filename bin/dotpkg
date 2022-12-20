@@ -213,12 +213,15 @@ def install(src_dir: Path, manifest: dict, opts: Options):
 
     if install_key in installs:
         existing_install = installs[install_key]
+        existing_paths = [Path(path) for path in existing_install.get('paths', [])]
         existing_target_dir = Path(existing_install.get('targetDir', str(target_dir)))
-        if target_dir.resolve() != existing_target_dir.resolve():
-            if confirm(f'The dotpkg {install_key} is already installed to {existing_target_dir}, but currently targets {target_dir}. Should it be uninstalled from the old target dir first?', opts):
-                uninstall(src_dir, manifest, opts)
-            else:
-                warn(f'This will leave the installed files at {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}')
+        if confirm(f'The dotpkg {install_key} is already installed to {existing_target_dir} and currently targets {target_dir}. Should it be uninstalled first?', opts):
+            uninstall(src_dir, manifest, opts)
+        elif target_dir.resolve() != existing_target_dir.resolve():
+            warn('\n'.join([
+                f'This will leave the installed files at the old target dir {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}. These files are affected:',
+                *[f'  {path}' for path in existing_paths],
+            ]))
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
