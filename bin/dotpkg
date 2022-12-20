@@ -124,16 +124,15 @@ def resolve_ignores(src_dir: Path, manifest: dict) -> set[Path]:
 
 def find_target_dir(manifest: dict) -> Path:
     raw_dirs = manifest.get('targetDir', ['${home}'])
+    dir_paths = [Path(resolve_manifest_str(raw_dir)) for raw_dir in raw_dirs]
 
-    for raw_dir in raw_dirs:
-        path = Path(resolve_manifest_str(raw_dir))
+    for path in dir_paths:
         if path.is_dir() and path.exists():
             return path
 
-    if manifest.get('createTargetDirIfNeeded', False) and raw_dirs:
-        path = Path(resolve_manifest_str(raw_dirs[0]))
-        path.mkdir(parents=True)
-        return path
+    if manifest.get('createTargetDirIfNeeded', False) and dir_paths:
+        # Defer creation until after potentially uninstalling an old version
+        return dir_paths[0]
 
     error(f'No suitable targetDir found in {raw_dirs}!')
 
@@ -220,6 +219,8 @@ def install(src_dir: Path, manifest: dict, opts: Options):
                 uninstall(src_dir, manifest, opts)
             else:
                 warn(f'This will leave the installed files at {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}')
+
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     ignores = resolve_ignores(src_dir, manifest)
     renames = manifest.get('renames', {})
