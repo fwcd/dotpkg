@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import socket
 import sys
@@ -16,7 +17,11 @@ if sys.version_info < (3, 9):
     sys.exit(1)
 
 DOTPKG_MANIFEST_NAME = 'dotpkg.json'
-IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, '.git', '.gitignore', '.DS_Store'}
+INSTALL_MANIFEST_DIR = Path('.').resolve()
+INSTALL_MANIFEST_NAME = 'installs.json'
+INSTALL_MANIFEST_PATH = INSTALL_MANIFEST_DIR / INSTALL_MANIFEST_NAME
+INSTALL_MANIFEST_VERSION = 1
+IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, INSTALL_MANIFEST_NAME, '.git', '.gitignore', '.DS_Store'}
 
 # Helpers
 
@@ -32,6 +37,8 @@ CLEAR_COLOR = '\033[0m'
 class Options:
     dry_run: bool
     assume_yes: bool
+    relative_target_path: bool
+    update_install_manifest: bool
 
 def message(msg: str, color: str):
     print(f'{color}==> {msg}{CLEAR_COLOR}')
@@ -75,6 +82,12 @@ def prompt(msg: str, choices: list[str], default: str, opts: Options):
 def confirm(msg: str, opts: Options):
     response = prompt(msg, ['yes', 'no'], 'yes', opts)
     return response == 'yes'
+
+def relativize(path: Path, base_path: Path) -> Path:
+    # We use os.path.relpath instead of Path.relative_to since
+    # it works too if the base_path is not an ancestor of path
+    # (by inserting '..' as needed).
+    return Path(os.path.relpath(str(path), str(base_path)))
 
 # Manifest resolution
 
@@ -146,6 +159,29 @@ def remove(target_path: Path, opts: Options):
     if not opts.dry_run:
         target_path.unlink()
 
+def read_install_manifest(opts: Options) -> dict:
+    try:
+        with open(INSTALL_MANIFEST_PATH, 'r') as f:
+            manifest = json.load(f)
+            version = manifest.get('version', 0)
+            if version < INSTALL_MANIFEST_VERSION:
+                if not confirm(f'An older install manifest with version {version} (current is {INSTALL_MANIFEST_VERSION}) exists at {INSTALL_MANIFEST_PATH}, which may be incompatible with the current version. Should this be used anyway? If no, the old one will be ignored/overwritten.', opts):
+                    manifest = None
+    except FileNotFoundError:
+        manifest = None
+    return manifest or {
+        'version': INSTALL_MANIFEST_VERSION,
+    }
+
+def write_install_manifest(manifest: dict, opts: Options):
+    if INSTALL_MANIFEST_PATH.exists():
+        note(f'Updating {INSTALL_MANIFEST_PATH}')
+    else:
+        print(f'Creating {INSTALL_MANIFEST_PATH}')
+    if not opts.dry_run:
+        with open(INSTALL_MANIFEST_PATH, 'w') as f:
+            json.dump(manifest, f, indent=2)
+
 def install(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
     host_specific_patterns = manifest.get('hostSpecificFiles', [])
@@ -200,14 +236,31 @@ def install(src_dir: Path, manifest: dict, opts: Options):
                 note(f'Skipping {target_path} (already linked)')
         else:
             add_link(src_path, target_path, opts)
+    
+    if opts.update_install_manifest:
+        install_manifest = read_install_manifest(opts)
+        installs = install_manifest.get('installs', {})
+        installs[str(relativize(src_dir, INSTALL_MANIFEST_DIR))] = {
+            'targetDir': str(relativize(target_dir, INSTALL_MANIFEST_DIR) if opts.relative_target_path else target_dir),
+        }
+        install_manifest['installs'] = installs
+        write_install_manifest(install_manifest, opts)
 
 def uninstall(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
+
     for src_path, target_path in find_link_candidates(src_dir, target_dir):
         if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
             remove(target_path, opts)
         else:
             print(f'Skipping {target_path} (not a link into the dotpkg)')
+    
+    if opts.update_install_manifest:
+        install_manifest = read_install_manifest(opts)
+        installs = install_manifest.get('installs', {})
+        del installs[str(relativize(src_dir, INSTALL_MANIFEST_DIR))]
+        install_manifest['installs'] = installs
+        write_install_manifest(install_manifest, opts)
 
 # Dotpkg resolution
 
@@ -283,11 +336,18 @@ def main():
     parser = argparse.ArgumentParser(description='Dotfile package manager')
     parser.add_argument('-d', '--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
     parser.add_argument('-y', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
+    parser.add_argument('--no-install-manifest', action='store_false', dest='update_install_manifest', help=f'Skips creating an install manifest ({INSTALL_MANIFEST_NAME}).')
+    parser.add_argument('--relative-target-path', action='store_true', help='Install a relative path to the target dir into the install manifest.')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
     parser.add_argument('dotpkgs', nargs=argparse.ZERO_OR_MORE, help='The dotpkgs to install (all by default)')
 
     args = parser.parse_args()
-    opts = Options(dry_run=args.dry_run, assume_yes=args.assume_yes)
+    opts = Options(
+        dry_run=args.dry_run,
+        assume_yes=args.assume_yes,
+        relative_target_path=args.relative_target_path,
+        update_install_manifest=args.update_install_manifest,
+    )
 
     if opts.dry_run:
         warn("Performing dry run (i.e. not actually changing any files)")
