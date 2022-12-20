@@ -13,6 +13,9 @@
   "anyOf": [
     {
       "$ref": "installs.v1.schema.json"
+    },
+    {
+      "$ref": "installs.v2.schema.json"
     }
   ]
 }

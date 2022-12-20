@@ -20,7 +20,7 @@ DOTPKG_MANIFEST_NAME = 'dotpkg.json'
 INSTALL_MANIFEST_DIR = Path('.').resolve()
 INSTALL_MANIFEST_NAME = 'installs.json'
 INSTALL_MANIFEST_PATH = INSTALL_MANIFEST_DIR / INSTALL_MANIFEST_NAME
-INSTALL_MANIFEST_VERSION = 1
+INSTALL_MANIFEST_VERSION = 2
 IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, INSTALL_MANIFEST_NAME, '.git', '.gitignore', '.DS_Store'}
 
 # Helpers
@@ -166,6 +166,8 @@ def read_install_manifest(opts: Options) -> dict:
             version = manifest.get('version', 0)
             if version < INSTALL_MANIFEST_VERSION:
                 if not confirm(f'An older install manifest with version {version} (current is {INSTALL_MANIFEST_VERSION}) exists at {INSTALL_MANIFEST_PATH}, which may be incompatible with the current version. Should this be used anyway? If no, the old one will be ignored/overwritten.', opts):
+                    manifest['version'] = INSTALL_MANIFEST_VERSION
+                else:
                     manifest = None
     except FileNotFoundError:
         manifest = None
@@ -185,6 +187,20 @@ def write_install_manifest(manifest: dict, opts: Options):
 
 def install(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
+
+    install_manifest = read_install_manifest(opts)
+    installs = install_manifest.get('installs', {})
+    install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
+
+    if install_key in installs:
+        existing_install = installs[install_key]
+        existing_target_dir = Path(existing_install.get('targetDir', str(target_dir)))
+        if target_dir.resolve() != existing_target_dir.resolve():
+            if confirm(f'The dotpkg {install_key} is already installed to {existing_target_dir}, but currently targets {target_dir}. Should it be uninstalled from the old target dir first?', opts):
+                uninstall(src_dir, manifest, opts)
+            else:
+                warn(f'This will leave the installed files at {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}')
+
     host_specific_patterns = manifest.get('hostSpecificFiles', [])
     host_specific_includes = {
         src_dir / resolve_manifest_str(p)
@@ -204,56 +220,54 @@ def install(src_dir: Path, manifest: dict, opts: Options):
     ignores = host_specific_ignores.union(custom_ignores)
     renames = manifest.get('renames', {})
 
-    install_manifest = read_install_manifest(opts)
-    installs = install_manifest.get('installs', {})
-    install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
-
-    if install_key in installs:
-        existing_install = installs[install_key]
-        existing_target_dir = Path(existing_install.get('targetDir', str(target_dir)))
-        if target_dir.resolve() != existing_target_dir.resolve():
-            if confirm(f'The dotpkg {install_key} is already installed to {existing_target_dir}, but currently targets {target_dir}. Should it be uninstalled from the old target dir first?', opts):
-                uninstall(src_dir, manifest, opts)
-            else:
-                warn(f'This will leave the installed files at {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}')
-    
     def renamer(name: str) -> str:
         for pat, s in renames.items():
             name = name.replace(resolve_manifest_str(pat), resolve_manifest_str(s))
         return name
 
+    installed_paths: list[Path] = []
+    
     for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
         if src_path in ignores:
             note(f'Ignoring {src_path}')
-        elif target_path.exists():
-            if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
-                def backup():
-                    move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
-                    add_link(src_path, target_path, opts)
-
-                def overwrite():
-                    remove(target_path, opts)
-                    add_link(src_path, target_path, opts)
-
-                def skip():
-                    note(f'Skipping {target_path}')
-
-                choices = {
-                    'backup': backup,
-                    'overwrite': overwrite,
-                    'skip': skip
-                }
-
-                response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(choices.keys()), 'skip', opts)
-                choices.get(response, skip)()
-            else:
-                note(f'Skipping {target_path} (already linked)')
         else:
-            add_link(src_path, target_path, opts)
+            skipped = False
+
+            if target_path.exists():
+                if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
+                    def backup():
+                        move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
+                        add_link(src_path, target_path, opts)
+
+                    def overwrite():
+                        remove(target_path, opts)
+                        add_link(src_path, target_path, opts)
+
+                    def skip():
+                        note(f'Skipping {target_path}')
+                        nonlocal skipped
+                        skipped = True
+
+                    choices = {
+                        'backup': backup,
+                        'overwrite': overwrite,
+                        'skip': skip
+                    }
+
+                    response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(choices.keys()), 'skip', opts)
+                    choices.get(response, skip)()
+                else:
+                    note(f'Skipping {target_path} (already linked)')
+            else:
+                add_link(src_path, target_path, opts)
+
+            if not skipped:
+                installed_paths.append(target_path)
     
     if opts.update_install_manifest:
         installs[install_key] = {
             'targetDir': str(relativize(target_dir, INSTALL_MANIFEST_DIR) if opts.relative_target_path else target_dir),
+            'paths': [str(path) for path in installed_paths],
         }
         install_manifest['installs'] = installs
         write_install_manifest(install_manifest, opts)
