@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import socket
+import subprocess
 import sys
 import platform
 
@@ -37,6 +38,7 @@ CLEAR_COLOR = '\033[0m'
 class Options:
     dry_run: bool
     assume_yes: bool
+    safe_mode: bool
     relative_target_path: bool
     update_install_manifest: bool
 
@@ -204,6 +206,18 @@ def write_install_manifest(manifest: dict, opts: Options):
         with open(INSTALL_MANIFEST_PATH, 'w') as f:
             json.dump(manifest, f, indent=2)
 
+def run_script(name: str, src_dir: Path, manifest: dict, opts: Options):
+    script = manifest.get('scripts', {}).get(name, None)
+
+    if script:
+        description = f"'{name}' ('{script}')"
+        if opts.safe_mode:
+            warn(f"Skipping script {description} in safe mode")
+        else:
+            print(f"Running script {description}...")
+            if not opts.dry_run:
+                subprocess.run(script, shell=True, cwd=src_dir, check=True)
+
 def install(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
 
@@ -272,6 +286,8 @@ def install(src_dir: Path, manifest: dict, opts: Options):
             if not skipped:
                 installed_paths.append(target_path)
     
+    run_script('install', src_dir, manifest, opts)
+
     if opts.update_install_manifest:
         installs[install_key] = {
             'targetDir': str(relativize(target_dir, INSTALL_MANIFEST_DIR) if opts.relative_target_path else target_dir),
@@ -288,6 +304,8 @@ def uninstall(src_dir: Path, manifest: dict, opts: Options):
 
     target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
     paths = [(None, Path(path)) for path in install['paths']] if 'paths' in install else find_link_candidates(src_dir, target_dir)
+
+    run_script('uninstall', src_dir, manifest, opts)
 
     for src_path, target_path in paths:
         if target_path.is_symlink() and (not src_path or target_path.resolve() == src_path.resolve()):
@@ -374,6 +392,7 @@ def main():
     parser = argparse.ArgumentParser(description='Dotfile package manager')
     parser.add_argument('-d', '--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
     parser.add_argument('-y', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
+    parser.add_argument('-s', '--safe-mode', action='store_true', help='Skip any user-defined shell commands such as scripts.')
     parser.add_argument('--no-install-manifest', action='store_false', dest='update_install_manifest', help=f'Skips creating an install manifest ({INSTALL_MANIFEST_NAME}).')
     parser.add_argument('--relative-target-path', action='store_true', help='Install a relative path to the target dir into the install manifest.')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
@@ -385,6 +404,7 @@ def main():
         assume_yes=args.assume_yes,
         relative_target_path=args.relative_target_path,
         update_install_manifest=args.update_install_manifest,
+        safe_mode=args.safe_mode,
     )
 
     if opts.dry_run:

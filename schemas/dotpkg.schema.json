@@ -75,6 +75,20 @@
       "type": "boolean",
       "description": "Creates the first directory from the 'targetDir' list if none exists.",
       "default": false
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Scripts for handling lifecycle events.",
+      "properties": {
+        "install": {
+          "type": "string",
+          "description": "A shell command to invoke during installation."
+        },
+        "uninstall": {
+          "type": "string",
+          "description": "A shell command to invoke during uninstallation."
+        }
+      }
     }
   }
 }
