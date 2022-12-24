@@ -76,6 +76,11 @@
       "description": "Creates the first directory from the 'targetDir' list if none exists.",
       "default": false
     },
+    "isScriptsOnly": {
+      "type": "boolean",
+      "description": "Implicitly ignores all files for linking. Useful for packages that only use their install/uninstall scripts.",
+      "default": false
+    },
     "scripts": {
       "type": "object",
       "description": "Scripts for handling lifecycle events.",

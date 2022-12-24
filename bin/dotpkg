@@ -239,52 +239,54 @@ def install(src_dir: Path, manifest: dict, opts: Options):
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    ignores = resolve_ignores(src_dir, manifest)
-    renames = manifest.get('renames', {})
-
-    def renamer(name: str) -> str:
-        for pat, s in renames.items():
-            name = name.replace(resolve_manifest_str(pat), resolve_manifest_str(s))
-        return name
-
+    scripts_only = manifest.get('isScriptsOnly', False)
     installed_paths: list[Path] = []
-    
-    for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
-        if src_path in ignores:
-            note(f'Ignoring {src_path}')
-        else:
-            skipped = False
 
-            if target_path.exists():
-                if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
-                    def backup():
-                        move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
-                        add_link(src_path, target_path, opts)
+    if not scripts_only:
+        ignores = resolve_ignores(src_dir, manifest)
+        renames = manifest.get('renames', {})
 
-                    def overwrite():
-                        remove(target_path, opts)
-                        add_link(src_path, target_path, opts)
+        def renamer(name: str) -> str:
+            for pat, s in renames.items():
+                name = name.replace(resolve_manifest_str(pat), resolve_manifest_str(s))
+            return name
 
-                    def skip():
-                        note(f'Skipping {target_path}')
-                        nonlocal skipped
-                        skipped = True
-
-                    choices = {
-                        'backup': backup,
-                        'overwrite': overwrite,
-                        'skip': skip
-                    }
-
-                    response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(choices.keys()), 'skip', opts)
-                    choices.get(response, skip)()
-                else:
-                    note(f'Skipping {target_path} (already linked)')
+        for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
+            if src_path in ignores:
+                note(f'Ignoring {src_path}')
             else:
-                add_link(src_path, target_path, opts)
+                skipped = False
 
-            if not skipped:
-                installed_paths.append(target_path)
+                if target_path.exists():
+                    if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
+                        def backup():
+                            move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
+                            add_link(src_path, target_path, opts)
+
+                        def overwrite():
+                            remove(target_path, opts)
+                            add_link(src_path, target_path, opts)
+
+                        def skip():
+                            note(f'Skipping {target_path}')
+                            nonlocal skipped
+                            skipped = True
+
+                        choices = {
+                            'backup': backup,
+                            'overwrite': overwrite,
+                            'skip': skip
+                        }
+
+                        response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(choices.keys()), 'skip', opts)
+                        choices.get(response, skip)()
+                    else:
+                        note(f'Skipping {target_path} (already linked)')
+                else:
+                    add_link(src_path, target_path, opts)
+
+                if not skipped:
+                    installed_paths.append(target_path)
     
     run_script('install', src_dir, manifest, opts)
 
