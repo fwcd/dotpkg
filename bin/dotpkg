@@ -220,7 +220,7 @@ def run_script(name: str, src_dir: Path, manifest: dict, opts: Options):
 
 def display_caveats(src_dir: Path, manifest: dict, opts: Options):
     requires = manifest.get('requires', None)
-    if requires == 'relog':
+    if requires == 'logout':
         warn(f'{manifest_name(src_dir, manifest)} requires logging out and back in to apply!')
     elif requires == 'reboot':
         warn(f'{manifest_name(src_dir, manifest)} requires rebooting the computer to apply!')
