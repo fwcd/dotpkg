@@ -81,6 +81,11 @@
       "description": "Implicitly ignores all files for linking. Useful for packages that only use their install/uninstall scripts.",
       "default": false
     },
+    "requires": {
+      "type": "string",
+      "enum": ["logout", "reboot"],
+      "description": "Whether (un)installation requires logging out or a reboot of the computer."
+    },
     "scripts": {
       "type": "object",
       "description": "Scripts for handling lifecycle events.",

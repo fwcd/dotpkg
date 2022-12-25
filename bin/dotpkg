@@ -218,6 +218,13 @@ def run_script(name: str, src_dir: Path, manifest: dict, opts: Options):
             if not opts.dry_run:
                 subprocess.run(script, shell=True, cwd=src_dir, check=True)
 
+def display_caveats(src_dir: Path, manifest: dict, opts: Options):
+    requires = manifest.get('requires', None)
+    if requires == 'relog':
+        warn(f'{manifest_name(src_dir, manifest)} requires logging out and back in to apply!')
+    elif requires == 'reboot':
+        warn(f'{manifest_name(src_dir, manifest)} requires rebooting the computer to apply!')
+
 def install(src_dir: Path, manifest: dict, opts: Options):
     target_dir = find_target_dir(manifest)
 
@@ -300,6 +307,8 @@ def install(src_dir: Path, manifest: dict, opts: Options):
         }
         install_manifest['installs'] = installs
         write_install_manifest(install_manifest, opts)
+    
+    display_caveats(src_dir, manifest, opts)
 
 def uninstall(src_dir: Path, manifest: dict, opts: Options):
     install_manifest = read_install_manifest(opts)
@@ -325,6 +334,8 @@ def uninstall(src_dir: Path, manifest: dict, opts: Options):
         del installs[install_key]
         install_manifest['installs'] = installs
         write_install_manifest(install_manifest, opts)
+
+    display_caveats(src_dir, manifest, opts)
 
 # Dotpkg resolution
 
