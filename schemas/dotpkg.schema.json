@@ -85,13 +85,29 @@
       "type": "object",
       "description": "Scripts for handling lifecycle events.",
       "properties": {
+        "preinstall": {
+          "type": "string",
+          "description": "A shell command to invoke prior to installation."
+        },
         "install": {
           "type": "string",
           "description": "A shell command to invoke during installation."
         },
+        "postinstall": {
+          "type": "string",
+          "description": "A shell command to invoke after installation."
+        },
+        "preuninstall": {
+          "type": "string",
+          "description": "A shell command to invoke prior to uninstallation."
+        },
         "uninstall": {
           "type": "string",
           "description": "A shell command to invoke during uninstallation."
+        },
+        "postuninstall": {
+          "type": "string",
+          "description": "A shell command to invoke after uninstallation."
         }
       }
     }

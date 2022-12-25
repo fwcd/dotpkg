@@ -237,6 +237,8 @@ def install(src_dir: Path, manifest: dict, opts: Options):
                 *[f'  {path}' for path in existing_paths],
             ]))
 
+    run_script('preinstall', src_dir, manifest, opts)
+
     target_dir.mkdir(parents=True, exist_ok=True)
 
     scripts_only = manifest.get('isScriptsOnly', False)
@@ -289,6 +291,7 @@ def install(src_dir: Path, manifest: dict, opts: Options):
                     installed_paths.append(target_path)
     
     run_script('install', src_dir, manifest, opts)
+    run_script('postinstall', src_dir, manifest, opts)
 
     if opts.update_install_manifest:
         installs[install_key] = {
@@ -307,6 +310,7 @@ def uninstall(src_dir: Path, manifest: dict, opts: Options):
     target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
     paths = [(None, Path(path)) for path in install['paths']] if 'paths' in install else find_link_candidates(src_dir, target_dir)
 
+    run_script('preuninstall', src_dir, manifest, opts)
     run_script('uninstall', src_dir, manifest, opts)
 
     for src_path, target_path in paths:
@@ -315,6 +319,8 @@ def uninstall(src_dir: Path, manifest: dict, opts: Options):
         else:
             print(f'Skipping {target_path} (not a link into the dotpkg)')
     
+    run_script('postuninstall', src_dir, manifest, opts)
+
     if opts.update_install_manifest:
         del installs[install_key]
         install_manifest['installs'] = installs
