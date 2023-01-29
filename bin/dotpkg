@@ -266,7 +266,7 @@ def install(src_dir: Path, manifest: dict, opts: Options):
             else:
                 skipped = False
 
-                if target_path.exists():
+                if target_path.is_symlink() or target_path.exists():
                     if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
                         def backup():
                             move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
