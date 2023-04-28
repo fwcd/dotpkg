@@ -136,7 +136,7 @@ def find_target_dir(manifest: dict) -> Path:
         # Defer creation until after potentially uninstalling an old version
         return dir_paths[0]
 
-    error(f'No suitable targetDir found in {raw_dirs}!')
+    return error(f'No suitable targetDir found in {raw_dirs}!')
 
 def unsatisfied_path_requirements(manifest: dict) -> Iterable[str]:
     for requirement in manifest.get('requiresOnPath', []):
