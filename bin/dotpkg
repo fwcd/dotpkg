@@ -364,13 +364,11 @@ def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict]]:
 # CLI
 
 def install_cmd(dotpkgs: list[str], opts: Options):
-    check_path = False
-    check_platforms = False
+    is_batch = False
 
     if not dotpkgs:
         dotpkgs = cwd_dotpkgs()
-        check_path = True
-        check_platforms = True
+        is_batch = True
         if not confirm(f"Install dotpkgs {', '.join(dotpkgs)}?", opts):
             print('Cancelling')
             sys.exit(0)
@@ -381,15 +379,21 @@ def install_cmd(dotpkgs: list[str], opts: Options):
         unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
         supported_platforms = set(manifest.get('platforms', []))
         our_platform = platform.system().lower()
+        skip_during_batch = manifest.get('skipDuringBatchInstall', False)
 
-        if not check_platforms or not supported_platforms or (our_platform in supported_platforms):
-            if not check_path or not unsatisfied_reqs:
-                info(f'Installing {name} ({description})...')
-                install(path, manifest, opts)
-            else:
+        if is_batch:
+            if skip_during_batch:
+                warn(f'Skipping {name} during batch-install')
+                continue
+            if supported_platforms and (our_platform not in supported_platforms):
+                warn(f"Skipping {name} (platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))})")
+                continue
+            if unsatisfied_reqs:
                 warn(f"Skipping {name} (could not find {', '.join(unsatisfied_reqs)} on PATH)")
-        else:
-            warn(f"Skipping {name} (platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))})")
+                continue
+
+        info(f'Installing {name} ({description})...')
+        install(path, manifest, opts)
 
 def uninstall_cmd(dotpkgs: list[str], opts: Options):
     if not dotpkgs:

@@ -76,6 +76,11 @@
       "description": "Creates the first directory from the 'targetDir' list if none exists.",
       "default": false
     },
+    "skipDuringBatchInstall": {
+      "type": "boolean",
+      "description": "Whether to skip the package during batch-install.",
+      "default": false
+    },
     "isScriptsOnly": {
       "type": "boolean",
       "description": "Implicitly ignores all files for linking. Useful for packages that only use their install/uninstall scripts.",
