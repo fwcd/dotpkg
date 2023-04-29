@@ -11,7 +11,7 @@ import platform
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
@@ -330,7 +330,7 @@ def uninstall(src_dir: Path, manifest: dict, opts: Options):
     
     run_script('postuninstall', src_dir, manifest, opts)
 
-    if opts.update_install_manifest:
+    if opts.update_install_manifest and install_key in installs:
         del installs[install_key]
         install_manifest['installs'] = installs
         write_install_manifest(install_manifest, opts)
@@ -361,6 +361,21 @@ def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict]]:
 
         yield path, manifest
 
+def batch_skip_reason(manifest: dict) -> Optional[str]:
+    unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
+    supported_platforms = set(manifest.get('platforms', []))
+    our_platform = platform.system().lower()
+    skip_during_batch = manifest.get('skipDuringBatchInstall', False)
+
+    if skip_during_batch:
+        return f'Batch-install'
+    if supported_platforms and (our_platform not in supported_platforms):
+        return f"Platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))}"
+    if unsatisfied_reqs:
+        return f"Could not find {', '.join(unsatisfied_reqs)} on PATH"
+
+    return None
+
 # CLI
 
 def install_cmd(dotpkgs: list[str], opts: Options):
@@ -376,34 +391,32 @@ def install_cmd(dotpkgs: list[str], opts: Options):
     for path, manifest in resolve_dotpkgs(dotpkgs):
         name = manifest_name(path, manifest)
         description = manifest.get('description', '')
-        unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
-        supported_platforms = set(manifest.get('platforms', []))
-        our_platform = platform.system().lower()
-        skip_during_batch = manifest.get('skipDuringBatchInstall', False)
 
-        if is_batch:
-            if skip_during_batch:
-                warn(f'Skipping {name} during batch-install')
-                continue
-            if supported_platforms and (our_platform not in supported_platforms):
-                warn(f"Skipping {name} (platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))})")
-                continue
-            if unsatisfied_reqs:
-                warn(f"Skipping {name} (could not find {', '.join(unsatisfied_reqs)} on PATH)")
-                continue
+        if is_batch and (skip_reason := batch_skip_reason(manifest)):
+            warn(f'Skipping {name} ({skip_reason})')
+            continue
 
         info(f'Installing {name} ({description})...')
         install(path, manifest, opts)
 
 def uninstall_cmd(dotpkgs: list[str], opts: Options):
+    is_batch = False
+
     if not dotpkgs:
         dotpkgs = cwd_dotpkgs()
+        is_batch = True
         if not confirm(f"Uninstall dotpkgs {', '.join(dotpkgs)}?", opts):
             print('Cancelling')
             sys.exit(0)
 
     for path, manifest in resolve_dotpkgs(dotpkgs):
-        info(f"Uninstalling {manifest_name(path, manifest)} ({manifest.get('description', '')})...")
+        name = manifest_name(path, manifest)
+
+        if is_batch and (skip_reason := batch_skip_reason(manifest)):
+            warn(f'Skipping {name} ({skip_reason})')
+            continue
+
+        info(f"Uninstalling {name} ({manifest.get('description', '')})...")
         uninstall(path, manifest, opts)
 
 COMMANDS = {
