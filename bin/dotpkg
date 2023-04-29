@@ -11,7 +11,7 @@ import platform
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, Any
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
@@ -61,12 +61,12 @@ def success(msg: str):
 def note(msg: str):
     print(f'{GRAY_COLOR}{msg}{CLEAR_COLOR}')
 
-def prompt(msg: str, choices: list[str], default: str, opts: Options):
+def prompt(msg: str, choices: list[str], default: str, opts: Options) -> str:
     if opts.assume_yes:
         return default
 
-    aliases = {}
-    option_strs = []
+    aliases: dict[str, str] = {}
+    option_strs: list[str] = []
 
     if choices:
         for choice in choices:
@@ -81,7 +81,7 @@ def prompt(msg: str, choices: list[str], default: str, opts: Options):
 
     return aliases.get(response, response)
 
-def confirm(msg: str, opts: Options):
+def confirm(msg: str, opts: Options) -> bool:
     response = prompt(msg, ['yes', 'no'], 'yes', opts)
     return response == 'yes'
 
@@ -104,7 +104,7 @@ def resolve_manifest_str(s: str) -> str:
         resolved = resolved.replace(key, value)
     return resolved
 
-def resolve_ignores(src_dir: Path, manifest: dict) -> set[Path]:
+def resolve_ignores(src_dir: Path, manifest: dict[str, Any]) -> set[Path]:
     host_specific_patterns = manifest.get('hostSpecificFiles', [])
     host_specific_includes = {
         src_dir / resolve_manifest_str(p)
@@ -124,7 +124,7 @@ def resolve_ignores(src_dir: Path, manifest: dict) -> set[Path]:
     ignores = host_specific_ignores.union(custom_ignores)
     return ignores
 
-def find_target_dir(manifest: dict) -> Path:
+def find_target_dir(manifest: dict[str, Any]) -> Path:
     raw_dirs = manifest.get('targetDir', ['${home}'])
     dir_paths = [Path(resolve_manifest_str(raw_dir)) for raw_dir in raw_dirs]
 
@@ -138,12 +138,12 @@ def find_target_dir(manifest: dict) -> Path:
 
     return error(f'No suitable targetDir found in {raw_dirs}!')
 
-def unsatisfied_path_requirements(manifest: dict) -> Iterable[str]:
+def unsatisfied_path_requirements(manifest: dict[str, Any]) -> Iterable[str]:
     for requirement in manifest.get('requiresOnPath', []):
         if not shutil.which(requirement):
             yield requirement
 
-def manifest_name(path: Path, manifest: dict) -> str:
+def manifest_name(path: Path, manifest: dict[str, Any]) -> str:
     return manifest.get('name', path.name)
 
 # Installation/uninstallation
@@ -180,7 +180,7 @@ def remove(target_path: Path, opts: Options):
     if not opts.dry_run:
         target_path.unlink()
 
-def read_install_manifest(opts: Options) -> dict:
+def read_install_manifest(opts: Options) -> dict[str, Any]:
     try:
         with open(INSTALL_MANIFEST_PATH, 'r') as f:
             manifest = json.load(f)
@@ -197,7 +197,7 @@ def read_install_manifest(opts: Options) -> dict:
         'version': INSTALL_MANIFEST_VERSION,
     }
 
-def write_install_manifest(manifest: dict, opts: Options):
+def write_install_manifest(manifest: dict[str, Any], opts: Options):
     if INSTALL_MANIFEST_PATH.exists():
         note(f'Updating {INSTALL_MANIFEST_PATH}')
     else:
@@ -206,7 +206,7 @@ def write_install_manifest(manifest: dict, opts: Options):
         with open(INSTALL_MANIFEST_PATH, 'w') as f:
             json.dump(manifest, f, indent=2)
 
-def run_script(name: str, src_dir: Path, manifest: dict, opts: Options):
+def run_script(name: str, src_dir: Path, manifest: dict[str, Any], opts: Options):
     script = manifest.get('scripts', {}).get(name, None)
 
     if script:
@@ -218,14 +218,14 @@ def run_script(name: str, src_dir: Path, manifest: dict, opts: Options):
             if not opts.dry_run:
                 subprocess.run(script, shell=True, cwd=src_dir, check=True)
 
-def display_caveats(src_dir: Path, manifest: dict, opts: Options):
+def display_caveats(src_dir: Path, manifest: dict[str, Any], opts: Options):
     requires = manifest.get('requires', None)
     if requires == 'logout':
         warn(f'{manifest_name(src_dir, manifest)} requires logging out and back in to apply!')
     elif requires == 'reboot':
         warn(f'{manifest_name(src_dir, manifest)} requires rebooting the computer to apply!')
 
-def install(src_dir: Path, manifest: dict, opts: Options):
+def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
     target_dir = find_target_dir(manifest)
 
     install_manifest = read_install_manifest(opts)
@@ -310,11 +310,11 @@ def install(src_dir: Path, manifest: dict, opts: Options):
     
     display_caveats(src_dir, manifest, opts)
 
-def uninstall(src_dir: Path, manifest: dict, opts: Options):
+def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
     install_manifest = read_install_manifest(opts)
     installs = install_manifest.get('installs', {})
     install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
-    install = installs.get(install_key, {})
+    install: dict[str, Any] = installs.get(install_key, {})
 
     target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
     paths = [(None, Path(path)) for path in install['paths']] if 'paths' in install else find_link_candidates(src_dir, target_dir)
@@ -346,7 +346,7 @@ def cwd_dotpkgs() -> list[str]:
         if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
     ]
 
-def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict]]:
+def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict[str, Any]]]:
     for dotpkg in dotpkgs:
         path = Path.cwd() / dotpkg
         manifest_path = path / DOTPKG_MANIFEST_NAME
@@ -361,7 +361,7 @@ def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict]]:
 
         yield path, manifest
 
-def batch_skip_reason(manifest: dict) -> Optional[str]:
+def batch_skip_reason(manifest: dict[str, Any]) -> Optional[str]:
     unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
     supported_platforms = set(manifest.get('platforms', []))
     our_platform = platform.system().lower()
