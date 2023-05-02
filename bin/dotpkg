@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -10,8 +11,9 @@ import sys
 import platform
 
 from dataclasses import dataclass
+from itertools import zip_longest
 from pathlib import Path
-from typing import Callable, Iterable, Optional, Any
+from typing import Callable, Iterable, Optional, Any, cast
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
@@ -90,6 +92,16 @@ def relativize(path: Path, base_path: Path) -> Path:
     # it works too if the base_path is not an ancestor of path
     # (by inserting '..' as needed).
     return Path(os.path.relpath(str(path), str(base_path)))
+
+def file_digest(path: Path) -> str:
+    # https://stackoverflow.com/a/44873382
+    h = hashlib.sha256()
+    b = bytearray(128 * 1024)
+    mv = memoryview(b)
+    with open(path, 'rb') as f:
+        while n := f.readinto(mv):
+            h.update(mv[:n])
+    return h.hexdigest()
 
 # Manifest resolution
 
@@ -170,10 +182,16 @@ def move(src_path: Path, target_path: Path, opts: Options):
     if not opts.dry_run:
         shutil.move(src_path, target_path)
 
-def add_link(src_path: Path, target_path: Path, opts: Options):
+def link(src_path: Path, target_path: Path, opts: Options):
     print(f'Linking {target_path} -> {src_path}')
     if not opts.dry_run:
         target_path.symlink_to(src_path)
+
+def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Options):
+    if should_copy:
+        copy(src_path, target_path, opts)
+    else:
+        link(src_path, target_path, opts)
 
 def remove(target_path: Path, opts: Options):
     print(f'Removing {target_path}')
@@ -249,11 +267,13 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
     target_dir.mkdir(parents=True, exist_ok=True)
 
     scripts_only = manifest.get('isScriptsOnly', False)
+    src_paths: list[Path] = []
     installed_paths: list[Path] = []
 
     if not scripts_only:
         ignores = resolve_ignores(src_dir, manifest)
         renames = manifest.get('renames', {})
+        should_copy = manifest.get('copy', False)
 
         def renamer(name: str) -> str:
             for pat, s in renames.items():
@@ -263,39 +283,53 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
         for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
             if src_path in ignores:
                 note(f'Ignoring {src_path}')
-            else:
-                skipped = False
+                continue
 
-                if target_path.is_symlink() or target_path.exists():
-                    if not target_path.is_symlink() or target_path.resolve() != src_path.resolve():
-                        def backup():
-                            move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
-                            add_link(src_path, target_path, opts)
+            skipped = False
 
-                        def overwrite():
-                            remove(target_path, opts)
-                            add_link(src_path, target_path, opts)
-
-                        def skip():
-                            note(f'Skipping {target_path}')
-                            nonlocal skipped
-                            skipped = True
-
-                        choices = {
-                            'backup': backup,
-                            'overwrite': overwrite,
-                            'skip': skip
-                        }
-
-                        response = prompt(f'{target_path} exists and is not a link into the dotpkg.', sorted(choices.keys()), 'skip', opts)
-                        choices.get(response, skip)()
-                    else:
-                        note(f'Skipping {target_path} (already linked)')
+            if target_path.is_symlink() or target_path.exists():
+                if should_copy:
+                    if file_digest(target_path) == file_digest(src_path):
+                        note(f'Skipping {target_path} (target and src hashes match)')
+                        continue
                 else:
-                    add_link(src_path, target_path, opts)
+                    if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
+                        note(f'Skipping {target_path} (already linked)')
+                        continue
 
-                if not skipped:
-                    installed_paths.append(target_path)
+                def backup():
+                    move(target_path, target_path.with_name(f'{target_path.name}.backup'), opts)
+                    install_path(src_path, target_path, should_copy, opts)
+
+                def overwrite():
+                    remove(target_path, opts)
+                    install_path(src_path, target_path, should_copy, opts)
+
+                def skip():
+                    note(f'Skipping {target_path}')
+                    nonlocal skipped
+                    skipped = True
+
+                choices = {
+                    'backup': backup,
+                    'overwrite': overwrite,
+                    'skip': skip
+                }
+
+                if should_copy:
+                    prompt_msg = f"{target_path} exists and is not a copy of the dotpkg's file."
+                else:
+                    prompt_msg = f'{target_path} exists and is not a link into the dotpkg.'
+
+                response = prompt(prompt_msg, sorted(choices.keys()), 'skip', opts)
+                choices.get(response, skip)()
+                continue
+
+            install_path(src_path, target_path, should_copy, opts)
+
+            if not skipped:
+                src_paths.append(src_path)
+                installed_paths.append(target_path)
     
     run_script('install', src_dir, manifest, opts)
     run_script('postinstall', src_dir, manifest, opts)
@@ -303,6 +337,7 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
     if opts.update_install_manifest:
         installs[install_key] = {
             'targetDir': str(relativize(target_dir, INSTALL_MANIFEST_DIR) if opts.relative_target_path else target_dir),
+            'srcPaths': [str(path) for path in src_paths],
             'paths': [str(path) for path in installed_paths],
         }
         install_manifest['installs'] = installs
@@ -316,17 +351,54 @@ def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
     install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
     install: dict[str, Any] = installs.get(install_key, {})
 
-    target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
-    paths = [(None, Path(path)) for path in install['paths']] if 'paths' in install else find_link_candidates(src_dir, target_dir)
-
     run_script('preuninstall', src_dir, manifest, opts)
     run_script('uninstall', src_dir, manifest, opts)
 
-    for src_path, target_path in paths:
-        if target_path.is_symlink() and (not src_path or target_path.resolve() == src_path.resolve()):
-            remove(target_path, opts)
+    scripts_only = manifest.get('isScriptsOnly', False)
+
+    if not scripts_only:
+        target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
+        should_copy = manifest.get('copy', False)
+
+        if 'paths' in install:
+            paths = zip_longest(map(Path, cast(list[str], install.get('srcPaths', []))), map(Path, install['paths']), fillvalue=None)
         else:
-            print(f'Skipping {target_path} (not a link into the dotpkg)')
+            paths = find_link_candidates(src_dir, target_dir)
+
+        for src_path, target_path in paths:
+            if not target_path:
+                note(f'Skipping src path {src_path} (no target path)')
+                continue
+
+            if should_copy:
+                if not src_path:
+                    note(f'Skipping {target_path} (no src path in a copy-package)')
+                    continue
+
+                if target_path.is_symlink():
+                    note(f'Skipping {target_path} (is a symlink while the package is copy)')
+                    continue
+
+                target_hash = file_digest(target_path)
+                src_hash = file_digest(src_path)
+
+                if target_hash != src_hash:
+                    note(f'Skipping {target_path} (target hash {target_hash} != src hash {src_hash})')
+                    continue
+            else:
+                if not target_path.is_symlink():
+                    note(f'Skipping {target_path} (not a symlink)')
+                    continue
+                
+                if src_path:
+                    target_dest = target_path.resolve()
+                    src_dest = src_path.resolve()
+                    
+                    if target_dest != src_dest:
+                        note(f'Skipping {target_path} (target dest {target_dest} != src dest {src_dest}, probably not a link into the package)')
+                        continue
+
+            remove(target_path, opts)
     
     run_script('postuninstall', src_dir, manifest, opts)
 
