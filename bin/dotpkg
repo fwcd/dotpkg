@@ -370,6 +370,10 @@ def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
                 note(f'Skipping src path {src_path} (no target path)')
                 continue
 
+            # TODO: Instead of just skipping these paths (and uninstalling the package from the install manifest)
+            #       we should probably prompt the user (similar to the backup/overwrite options during installation)
+            #       for how to proceed.
+
             if should_copy:
                 if not src_path:
                     note(f'Skipping {target_path} (no src path in a copy-package)')
