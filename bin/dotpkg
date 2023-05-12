@@ -495,9 +495,14 @@ def uninstall_cmd(dotpkgs: list[str], opts: Options):
         info(f"Uninstalling {name} ({manifest.get('description', '')})...")
         uninstall(path, manifest, opts)
 
+def sync_cmd(dotpkgs: list[str], opts: Options):
+    uninstall_cmd(dotpkgs, opts)
+    install_cmd(dotpkgs, opts)
+
 COMMANDS = {
     'install': install_cmd,
-    'uninstall': uninstall_cmd
+    'uninstall': uninstall_cmd,
+    'sync': sync_cmd,
 }
 
 def main():
