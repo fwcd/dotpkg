@@ -1,44 +1,17 @@
 import argparse
-import json
 import sys
 
-from pathlib import Path
-from typing import Iterable, Any
-
-from dotpkg.constants import IGNORED_NAMES, DOTPKG_MANIFEST_NAME, INSTALL_MANIFEST_NAME
+from dotpkg.constants import INSTALL_MANIFEST_NAME
+from dotpkg.resolve import cwd_dotpkgs, resolve_dotpkgs
 from dotpkg.install import install, uninstall
 from dotpkg.manifest import manifest_name, batch_skip_reason
 from dotpkg.options import Options
-from dotpkg.utils.log import info, warn, error
+from dotpkg.utils.log import info, warn
 from dotpkg.utils.prompt import confirm
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
     sys.exit(1)
-
-# Dotpkg resolution
-
-def cwd_dotpkgs() -> list[str]:
-    return [
-        p.name
-        for p in Path.cwd().iterdir()
-        if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
-    ]
-
-def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict[str, Any]]]:
-    for dotpkg in dotpkgs:
-        path = Path.cwd() / dotpkg
-        manifest_path = path / DOTPKG_MANIFEST_NAME
-
-        if not path.exists() or not path.is_dir():
-            error(f"Dotpkg '{dotpkg}' does not exist in cwd!")
-        if not manifest_path.exists():
-            error(f"Missing dotpkg.json for '{dotpkg}'!")
-
-        with open(str(manifest_path), 'r') as f:
-            manifest = json.loads(f.read())
-
-        yield path, manifest
 
 # CLI
 
