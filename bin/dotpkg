@@ -439,7 +439,7 @@ def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict[str, Any]]]
 
 def batch_skip_reason(manifest: dict[str, Any]) -> Optional[str]:
     unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
-    supported_platforms = set(manifest.get('platforms', []))
+    supported_platforms: set[str] = set(manifest.get('platforms', []))
     our_platform = platform.system().lower()
     skip_during_batch = manifest.get('skipDuringBatchInstall', False)
 
