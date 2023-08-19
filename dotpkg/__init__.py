@@ -1,14 +1,13 @@
 import argparse
 import json
 import sys
-import platform
 
 from pathlib import Path
-from typing import Iterable, Optional, Any
+from typing import Iterable, Any
 
 from dotpkg.constants import IGNORED_NAMES, DOTPKG_MANIFEST_NAME, INSTALL_MANIFEST_NAME
 from dotpkg.install import install, uninstall
-from dotpkg.manifest import manifest_name, unsatisfied_path_requirements
+from dotpkg.manifest import manifest_name, batch_skip_reason
 from dotpkg.options import Options
 from dotpkg.utils.log import info, warn, error
 from dotpkg.utils.prompt import confirm
@@ -40,21 +39,6 @@ def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict[str, Any]]]
             manifest = json.loads(f.read())
 
         yield path, manifest
-
-def batch_skip_reason(manifest: dict[str, Any]) -> Optional[str]:
-    unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
-    supported_platforms: set[str] = set(manifest.get('platforms', []))
-    our_platform = platform.system().lower()
-    skip_during_batch = manifest.get('skipDuringBatchInstall', False)
-
-    if skip_during_batch:
-        return f'Batch-install'
-    if supported_platforms and (our_platform not in supported_platforms):
-        return f"Platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))}"
-    if unsatisfied_reqs:
-        return f"Could not find {', '.join(unsatisfied_reqs)} on PATH"
-
-    return None
 
 # CLI
 

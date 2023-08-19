@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Optional
 
 from dotpkg.utils.log import error
 
+import platform
 import shutil
 import socket
 
@@ -60,3 +61,18 @@ def unsatisfied_path_requirements(manifest: dict[str, Any]) -> Iterable[str]:
 
 def manifest_name(path: Path, manifest: dict[str, Any]) -> str:
     return manifest.get('name', path.name)
+
+def batch_skip_reason(manifest: dict[str, Any]) -> Optional[str]:
+    unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
+    supported_platforms: set[str] = set(manifest.get('platforms', []))
+    our_platform = platform.system().lower()
+    skip_during_batch = manifest.get('skipDuringBatchInstall', False)
+
+    if skip_during_batch:
+        return f'Batch-install'
+    if supported_platforms and (our_platform not in supported_platforms):
+        return f"Platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))}"
+    if unsatisfied_reqs:
+        return f"Could not find {', '.join(unsatisfied_reqs)} on PATH"
+
+    return None
