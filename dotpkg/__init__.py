@@ -1,17 +1,19 @@
 import argparse
-import hashlib
 import json
-import os
 import shutil
 import socket
 import subprocess
 import sys
 import platform
 
-from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
 from typing import Callable, Iterable, Optional, Any, cast
+
+from dotpkg.helpers import relativize, file_digest
+from dotpkg.log import note, info, warn, error
+from dotpkg.options import Options
+from dotpkg.prompt import prompt, confirm
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
@@ -23,83 +25,6 @@ INSTALL_MANIFEST_NAME = 'installs.json'
 INSTALL_MANIFEST_PATH = INSTALL_MANIFEST_DIR / INSTALL_MANIFEST_NAME
 INSTALL_MANIFEST_VERSION = 2
 IGNORED_NAMES = {DOTPKG_MANIFEST_NAME, INSTALL_MANIFEST_NAME, '.git', '.gitignore', '.DS_Store'}
-
-# Helpers
-
-RED_COLOR = '\033[91m'
-YELLOW_COLOR = '\033[93m'
-BLUE_COLOR = '\033[36m'
-GRAY_COLOR = '\033[90m'
-GREEN_COLOR = '\033[92m'
-PINK_COLOR = '\033[95m'
-CLEAR_COLOR = '\033[0m'
-
-@dataclass
-class Options:
-    dry_run: bool
-    assume_yes: bool
-    safe_mode: bool
-    relative_target_path: bool
-    update_install_manifest: bool
-
-def message(msg: str, color: str):
-    print(f'{color}==> {msg}{CLEAR_COLOR}')
-
-def error(msg: str):
-    message(msg, RED_COLOR)
-    sys.exit(1)
-
-def warn(msg: str):
-    message(msg, YELLOW_COLOR)
-
-def info(msg: str):
-    message(msg, BLUE_COLOR)
-
-def success(msg: str):
-    message(msg, GREEN_COLOR)
-
-def note(msg: str):
-    print(f'{GRAY_COLOR}{msg}{CLEAR_COLOR}')
-
-def prompt(msg: str, choices: list[str], default: str, opts: Options) -> str:
-    if opts.assume_yes:
-        return default
-
-    aliases: dict[str, str] = {}
-    option_strs: list[str] = []
-
-    if choices:
-        for choice in choices:
-            i = 1
-            while choice[:i] in aliases.keys():
-                i += 1
-            aliases[choice[:i]] = choice
-            option_strs.append(f'[{choice[:i]}]{choice[i:]}')
-
-    choices_str = f" - {', '.join(option_strs)}"
-    response = input(f"{PINK_COLOR}==> {msg}{choices_str} {CLEAR_COLOR}")
-
-    return aliases.get(response, response)
-
-def confirm(msg: str, opts: Options) -> bool:
-    response = prompt(msg, ['yes', 'no'], 'yes', opts)
-    return response == 'yes'
-
-def relativize(path: Path, base_path: Path) -> Path:
-    # We use os.path.relpath instead of Path.relative_to since
-    # it works too if the base_path is not an ancestor of path
-    # (by inserting '..' as needed).
-    return Path(os.path.relpath(str(path), str(base_path)))
-
-def file_digest(path: Path) -> str:
-    # https://stackoverflow.com/a/44873382
-    h = hashlib.sha256()
-    b = bytearray(128 * 1024)
-    mv = memoryview(b)
-    with open(path, 'rb') as f:
-        while n := f.readinto(mv):
-            h.update(mv[:n])
-    return h.hexdigest()
 
 # Manifest resolution
 
