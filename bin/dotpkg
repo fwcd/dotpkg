@@ -264,13 +264,13 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
     run_script('preinstall', src_dir, manifest, opts)
 
-    target_dir.mkdir(parents=True, exist_ok=True)
-
     scripts_only = manifest.get('isScriptsOnly', False)
     src_paths: list[Path] = []
     installed_paths: list[Path] = []
 
     if not scripts_only:
+        target_dir.mkdir(parents=True, exist_ok=True)
+
         ignores = resolve_ignores(src_dir, manifest)
         renames = manifest.get('renames', {})
         should_copy = manifest.get('copy', False)
