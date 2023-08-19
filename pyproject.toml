@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dotpkg"
+version = "0.0.1"
+description = "Package manager for your dotfiles"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+dotpkg = "dotpkg:main"
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.pyright]
+include = ["dotpkg"]
