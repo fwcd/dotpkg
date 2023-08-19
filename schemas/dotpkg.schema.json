@@ -76,6 +76,13 @@
       "description": "Creates the first directory from the 'targetDir' list if none exists.",
       "default": false
     },
+    "touchFiles": {
+      "type": "array",
+      "description": "A list of paths to create in the target directory, if not already existing. Useful e.g. for private/ignored configs that are included by a packaged config.",
+      "items": {
+        "type": "string"
+      }
+    },
     "skipDuringBatchInstall": {
       "type": "boolean",
       "description": "Whether to skip the package during batch-install.",

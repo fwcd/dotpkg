@@ -187,6 +187,11 @@ def link(src_path: Path, target_path: Path, opts: Options):
     if not opts.dry_run:
         target_path.symlink_to(src_path)
 
+def touch(path: Path, opts: Options):
+    print(f'Touching {path}')
+    if not opts.dry_run:
+        path.touch()
+
 def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Options):
     if should_copy:
         copy(src_path, target_path, opts)
@@ -270,6 +275,11 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
     if not scripts_only:
         target_dir.mkdir(parents=True, exist_ok=True)
+
+        touch_files: list[str] = manifest.get('touchFiles', [])
+        for rel_path in touch_files:
+            touch_path = target_dir / rel_path
+            touch(touch_path, opts)
 
         ignores = resolve_ignores(src_dir, manifest)
         renames = manifest.get('renames', {})
