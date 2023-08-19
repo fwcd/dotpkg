@@ -1,11 +1,12 @@
 # Dotpkg
 
+[![Typecheck](https://github.com/fwcd/dotpkg/actions/workflows/typecheck.yml/badge.svg)](https://github.com/fwcd/dotpkg/actions/workflows/typecheck.yml)
+
 A package manager for your dotfiles.
 
 ## Why Dotpkg?
 
-- **Lightweight**: Packaged as a single executable script
-- **No dependencies**: Just Python 3.9
+- **Lightweight**: Pure Python 3.9 with no dependencies
 - **JSON-configurable**: Easy to write, includes a schema for code completion
 - **Cross-platform**: Runs on Linux, macOS and Windows
 - **Flexible**: Configurable target locations, ignore lists, rename rules and more
