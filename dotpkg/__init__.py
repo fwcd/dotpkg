@@ -10,10 +10,10 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import Callable, Iterable, Optional, Any, cast
 
-from dotpkg.helpers import relativize, file_digest
-from dotpkg.log import note, info, warn, error
 from dotpkg.options import Options
-from dotpkg.prompt import prompt, confirm
+from dotpkg.utils.file import relativize, file_digest, copy, move, link, touch, remove
+from dotpkg.utils.log import note, info, warn, error
+from dotpkg.utils.prompt import prompt, confirm
 
 if sys.version_info < (3, 9):
     print('Python version >= 3.9 is required!')
@@ -95,36 +95,11 @@ def find_link_candidates(src_dir: Path, target_dir: Path, renamer: Callable[[str
             else:
                 yield src_path, target_path
 
-def copy(src_path: Path, target_path: Path, opts: Options):
-    print(f'Copying {src_path} to {target_path}')
-    if not opts.dry_run:
-        shutil.copy(src_path, target_path)
-
-def move(src_path: Path, target_path: Path, opts: Options):
-    print(f'Moving {src_path} to {target_path}')
-    if not opts.dry_run:
-        shutil.move(src_path, target_path)
-
-def link(src_path: Path, target_path: Path, opts: Options):
-    print(f'Linking {target_path} -> {src_path}')
-    if not opts.dry_run:
-        target_path.symlink_to(src_path)
-
-def touch(path: Path, opts: Options):
-    print(f'Touching {path}')
-    if not opts.dry_run:
-        path.touch()
-
 def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Options):
     if should_copy:
         copy(src_path, target_path, opts)
     else:
         link(src_path, target_path, opts)
-
-def remove(target_path: Path, opts: Options):
-    print(f'Removing {target_path}')
-    if not opts.dry_run:
-        target_path.unlink()
 
 def read_install_manifest(opts: Options) -> dict[str, Any]:
     try:

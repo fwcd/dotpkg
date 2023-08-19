@@ -1,5 +1,5 @@
 from dotpkg.options import Options
-from dotpkg.log import PINK_COLOR, CLEAR_COLOR
+from dotpkg.utils.log import PINK_COLOR, CLEAR_COLOR
 
 def prompt(msg: str, choices: list[str], default: str, opts: Options) -> str:
     if opts.assume_yes:
