@@ -7,6 +7,9 @@ name = "dotpkg"
 version = "0.0.1"
 description = "Package manager for your dotfiles"
 requires-python = ">=3.9"
+license = { file = "LICENSE" }
+classifiers = ["Topic :: Utilities"]
+keywords = ["package-manager", "dotfiles"]
 dependencies = []
 
 [project.scripts]
