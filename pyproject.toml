@@ -14,8 +14,8 @@ keywords = ["package-manager", "dotfiles"]
 dependencies = []
 
 [project.urls]
-homepage = "https://github.com/fwcd/dotpkg"
-repository = "https://github.com/fwcd/dotpkg"
+Homepage = "https://github.com/fwcd/dotpkg"
+Repository = "https://github.com/fwcd/dotpkg"
 
 [project.scripts]
 dotpkg = "dotpkg:main"
