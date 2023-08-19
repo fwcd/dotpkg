@@ -1,5 +1,7 @@
 # Dotpkg
 
+[![Typecheck](https://github.com/fwcd/dotpkg/actions/workflows/typecheck.yml/badge.svg)](https://github.com/fwcd/dotpkg/actions/workflows/typecheck.yml)
+
 A package manager for your dotfiles.
 
 ## Why Dotpkg?
