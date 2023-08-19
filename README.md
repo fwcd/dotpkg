@@ -1,5 +1,6 @@
 # Dotpkg
 
+[![PyPI](https://img.shields.io/pypi/v/dotpkg)](https://pypi.org/project/dotpkg)
 [![Typecheck](https://github.com/fwcd/dotpkg/actions/workflows/typecheck.yml/badge.svg)](https://github.com/fwcd/dotpkg/actions/workflows/typecheck.yml)
 
 A package manager for your dotfiles.
