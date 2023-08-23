@@ -26,7 +26,7 @@ def main():
     parser.add_argument('--no-install-manifest', action='store_false', dest='update_install_manifest', help=f'Skips creating an install manifest ({INSTALL_MANIFEST_NAME}).')
     parser.add_argument('--relative-target-path', action='store_true', help='Install a relative path to the target dir into the install manifest.')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
-    parser.add_argument('dotpkgs', nargs=argparse.ZERO_OR_MORE, help='The dotpkgs to install (all by default)')
+    parser.add_argument('subargs', nargs=argparse.ZERO_OR_MORE, help='The arguments to the command.')
 
     args = parser.parse_args()
     opts = Options(
@@ -40,4 +40,4 @@ def main():
     if opts.dry_run:
         warn("Performing dry run (i.e. not actually changing any files)")
 
-    COMMANDS[args.command](args.dotpkgs, opts)
+    COMMANDS[args.command](args.subargs, opts)
