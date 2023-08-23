@@ -2,10 +2,10 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import Callable, Iterable, Any, cast
 
-from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_PATH, INSTALL_MANIFEST_VERSION, INSTALL_MANIFEST_DIR
+from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_PATH, INSTALL_MANIFEST_VERSION
 from dotpkg.manifest import manifest_name, find_target_dir, resolve_ignores, resolve_manifest_str
 from dotpkg.options import Options
-from dotpkg.utils.file import relativize, file_digest, copy, move, link, touch, remove
+from dotpkg.utils.file import file_digest, copy, move, link, touch, remove
 from dotpkg.utils.log import note, warn
 from dotpkg.utils.prompt import prompt, confirm
 
@@ -55,6 +55,7 @@ def write_install_manifest(manifest: dict[str, Any], opts: Options):
     else:
         print(f'Creating {INSTALL_MANIFEST_PATH}')
     if not opts.dry_run:
+        INSTALL_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(INSTALL_MANIFEST_PATH, 'w') as f:
             json.dump(manifest, f, indent=2)
 
@@ -82,7 +83,7 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
     install_manifest = read_install_manifest(opts)
     installs = install_manifest.get('installs', {})
-    install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
+    install_key = str(src_dir)
 
     if install_key in installs:
         existing_install = installs[install_key]
@@ -175,7 +176,7 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
     if opts.update_install_manifest:
         installs[install_key] = {
-            'targetDir': str(relativize(target_dir, INSTALL_MANIFEST_DIR) if opts.relative_target_path else target_dir),
+            'targetDir': str(target_dir),
             'srcPaths': [str(path) for path in src_paths],
             'paths': [str(path) for path in installed_paths],
         }
@@ -187,7 +188,7 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
     install_manifest = read_install_manifest(opts)
     installs = install_manifest.get('installs', {})
-    install_key = str(relativize(src_dir, INSTALL_MANIFEST_DIR))
+    install_key = str(src_dir)
     install: dict[str, Any] = installs.get(install_key, {})
 
     run_script('preuninstall', src_dir, manifest, opts)

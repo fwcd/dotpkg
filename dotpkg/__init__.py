@@ -24,7 +24,6 @@ def main():
     parser.add_argument('-y', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
     parser.add_argument('-s', '--safe-mode', action='store_true', help='Skip any user-defined shell commands such as scripts.')
     parser.add_argument('--no-install-manifest', action='store_false', dest='update_install_manifest', help=f'Skips creating an install manifest ({INSTALL_MANIFEST_NAME}).')
-    parser.add_argument('--relative-target-path', action='store_true', help='Install a relative path to the target dir into the install manifest.')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
     parser.add_argument('subargs', nargs=argparse.ZERO_OR_MORE, help='The arguments to the command.')
 
@@ -32,7 +31,6 @@ def main():
     opts = Options(
         dry_run=args.dry_run,
         assume_yes=args.assume_yes,
-        relative_target_path=args.relative_target_path,
         update_install_manifest=args.update_install_manifest,
         safe_mode=args.safe_mode,
     )
