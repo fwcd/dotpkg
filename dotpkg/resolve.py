@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Any
+from typing import Any
 
 from dotpkg.constants import DOTPKG_MANIFEST_NAME, IGNORED_NAMES
 from dotpkg.utils.log import error
@@ -8,24 +9,46 @@ import json
 
 # Dotpkg resolution
 
-def cwd_dotpkgs() -> list[str]:
-    return [
-        p.name
-        for p in Path.cwd().iterdir()
-        if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
-    ]
+@dataclass
+class Dotpkg:
+    path: Path
 
-def resolve_dotpkgs(dotpkgs: list[str]) -> Iterable[tuple[Path, dict[str, Any]]]:
-    for dotpkg in dotpkgs:
-        path = Path.cwd() / dotpkg
-        manifest_path = path / DOTPKG_MANIFEST_NAME
+    @property
+    def name(self) -> str:
+        return self.path.name
 
-        if not path.exists() or not path.is_dir():
-            error(f"Dotpkg '{dotpkg}' does not exist in cwd!")
-        if not manifest_path.exists():
-            error(f"Missing dotpkg.json for '{dotpkg}'!")
+    @property
+    def manifest_path(self) -> Path:
+        return self.path / DOTPKG_MANIFEST_NAME
 
-        with open(str(manifest_path), 'r') as f:
-            manifest = json.loads(f.read())
+    def read_manifest(self) -> dict[str, Any]:
+        if not self.manifest_path.exists():
+            error(f"Missing dotpkg.json for '{self.name}'!")
 
-        yield path, manifest
+        with open(str(self.manifest_path), 'r') as f:
+            return json.loads(f.read())
+
+@dataclass
+class FoundDotpkgs:
+    dotpkgs: list[Dotpkg]
+    is_batch: bool
+
+def cwd_dotpkgs() -> FoundDotpkgs:
+    cwd = Path.cwd().resolve()
+
+    # Prefer current directory if it contains a manifest
+    if (cwd / DOTPKG_MANIFEST_NAME).exists():
+        return FoundDotpkgs(
+            dotpkgs=[Dotpkg(cwd)],
+            is_batch=False,
+        )
+    
+    # Otherwise resolve child directories
+    return FoundDotpkgs(
+        dotpkgs=[
+            Dotpkg(p)
+            for p in cwd.iterdir()
+            if not p.name in IGNORED_NAMES and (p / DOTPKG_MANIFEST_NAME).exists()
+        ],
+        is_batch=True,
+    )
