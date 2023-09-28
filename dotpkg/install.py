@@ -5,7 +5,7 @@ from typing import Callable, Iterable, Any, cast
 from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_PATH, INSTALL_MANIFEST_VERSION
 from dotpkg.manifest import manifest_name, find_target_dir, resolve_ignores, resolve_manifest_str
 from dotpkg.options import Options
-from dotpkg.utils.file import file_digest, copy, move, link, touch, remove
+from dotpkg.utils.file import path_digest, copy, move, link, touch, remove
 from dotpkg.utils.log import note, warn
 from dotpkg.utils.prompt import prompt, confirm
 
@@ -129,7 +129,7 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
             if target_path.is_symlink() or target_path.exists():
                 if should_copy:
-                    if file_digest(target_path) == file_digest(src_path):
+                    if path_digest(target_path) == path_digest(src_path):
                         note(f'Skipping {target_path} (target and src hashes match)')
                         continue
                 else:
@@ -225,8 +225,8 @@ def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
                     note(f'Skipping {target_path} (is a symlink while the package is copy)')
                     continue
 
-                target_hash = file_digest(target_path)
-                src_hash = file_digest(src_path)
+                target_hash = path_digest(target_path)
+                src_hash = path_digest(src_path)
 
                 if target_hash != src_hash:
                     note(f'Skipping {target_path} (target hash {target_hash} != src hash {src_hash})')
