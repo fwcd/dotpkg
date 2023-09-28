@@ -1,5 +1,4 @@
 from pathlib import Path
-from re import A
 from tempfile import TemporaryDirectory
 from typing import Any
 
