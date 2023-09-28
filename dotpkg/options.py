@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Options:
-    dry_run: bool
-    assume_yes: bool
-    safe_mode: bool
-    update_install_manifest: bool
+    dry_run: bool = False
+    assume_yes: bool = False
+    safe_mode: bool = False
+    update_install_manifest: bool = False

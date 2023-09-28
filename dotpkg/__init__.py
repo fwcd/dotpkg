@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from dotpkg.constants import INSTALL_MANIFEST_NAME
+from dotpkg.constants import INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_PATH
 from dotpkg.commands import install_cmd, uninstall_cmd, sync_cmd
 from dotpkg.options import Options
 from dotpkg.utils.log import warn
@@ -23,7 +23,7 @@ def main():
     parser.add_argument('-d', '--dry-run', action='store_true', help='Simulate a run without any modifications to the file system.')
     parser.add_argument('-y', '--assume-yes', action='store_true', help='Accept prompts with yes and run non-interactively (great for scripts)')
     parser.add_argument('-s', '--safe-mode', action='store_true', help='Skip any user-defined shell commands such as scripts.')
-    parser.add_argument('--no-install-manifest', action='store_false', dest='update_install_manifest', help=f'Skips creating an install manifest ({INSTALL_MANIFEST_NAME}).')
+    parser.add_argument('--no-install-manifest', action='store_false', dest='update_install_manifest', help=f'Skips updating the install manifest at {INSTALL_MANIFEST_PATH}.')
     parser.add_argument('command', choices=sorted(COMMANDS.keys()), help='The command to invoke')
     parser.add_argument('subargs', nargs=argparse.ZERO_OR_MORE, help='The arguments to the command.')
 
