@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from dotpkg.utils.log import error
+from dotpkg.options import Options
 
 import platform
 import shutil
@@ -9,21 +10,22 @@ import socket
 
 # Manifest resolution
 
-MANIFEST_VARS = {
-    '${home}': str(Path.home().resolve()),
-    '${hostname}': socket.gethostname()
-}
+def manifest_vars(opts: Options):
+    return {
+        '${home}': str(opts.home.resolve()),
+        '${hostname}': socket.gethostname()
+    }
 
-def resolve_manifest_str(s: str) -> str:
+def resolve_manifest_str(s: str, opts: Options) -> str:
     resolved = s
-    for key, value in MANIFEST_VARS.items():
+    for key, value in manifest_vars(opts).items():
         resolved = resolved.replace(key, value)
     return resolved
 
-def resolve_ignores(src_dir: Path, manifest: dict[str, Any]) -> set[Path]:
+def resolve_ignores(src_dir: Path, manifest: dict[str, Any], opts: Options) -> set[Path]:
     host_specific_patterns = manifest.get('hostSpecificFiles', [])
     host_specific_includes = {
-        src_dir / resolve_manifest_str(p)
+        src_dir / resolve_manifest_str(p, opts)
         for p in host_specific_patterns
     }
     host_specific_ignores = {
@@ -40,9 +42,9 @@ def resolve_ignores(src_dir: Path, manifest: dict[str, Any]) -> set[Path]:
     ignores = host_specific_ignores.union(custom_ignores)
     return ignores
 
-def find_target_dir(manifest: dict[str, Any]) -> Path:
+def find_target_dir(manifest: dict[str, Any], opts: Options) -> Path:
     raw_dirs = manifest.get('targetDir', ['${home}'])
-    dir_paths = [Path(resolve_manifest_str(raw_dir)) for raw_dir in raw_dirs]
+    dir_paths = [Path(resolve_manifest_str(raw_dir, opts)) for raw_dir in raw_dirs]
 
     for path in dir_paths:
         if path.is_dir() and path.exists():

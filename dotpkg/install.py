@@ -79,7 +79,7 @@ def display_caveats(src_dir: Path, manifest: dict[str, Any], opts: Options):
         warn(f'{manifest_name(src_dir, manifest)} requires rebooting the computer to apply!')
 
 def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
-    target_dir = find_target_dir(manifest)
+    target_dir = find_target_dir(manifest, opts)
 
     install_manifest = read_install_manifest(opts)
     installs = install_manifest.get('installs', {})
@@ -111,13 +111,13 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
             touch_path = target_dir / rel_path
             touch(touch_path, opts)
 
-        ignores = resolve_ignores(src_dir, manifest)
+        ignores = resolve_ignores(src_dir, manifest, opts)
         renames = manifest.get('renames', {})
         should_copy = manifest.get('copy', False)
 
         def renamer(name: str) -> str:
             for pat, s in renames.items():
-                name = name.replace(resolve_manifest_str(pat), resolve_manifest_str(s))
+                name = name.replace(resolve_manifest_str(pat, opts), resolve_manifest_str(s, opts))
             return name
 
         for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
@@ -199,7 +199,7 @@ def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
     scripts_only = manifest.get('isScriptsOnly', False)
 
     if not scripts_only:
-        target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest)
+        target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest, opts)
         should_copy = manifest.get('copy', False)
 
         if 'paths' in install:
