@@ -30,7 +30,7 @@ def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Opt
     if should_copy:
         copy(src_path, target_path, opts)
     else:
-        link(src_path, target_path, opts)
+        link(src_path.resolve(), target_path, opts)
 
 def read_install_manifest(opts: Options) -> dict[str, Any]:
     try:
@@ -159,6 +159,8 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
                 if should_copy:
                     prompt_msg = f"{target_path} exists and is not a copy of the dotpkg's file."
                 else:
+                    # TODO: Add option to view the file e.g. with an editor if its a regular file
+                    #       and show non-dotpkg symlink destination otherwise.
                     prompt_msg = f'{target_path} exists and is not a link into the dotpkg.'
 
                 response = prompt(prompt_msg, sorted(choices.keys()), 'skip', opts)
