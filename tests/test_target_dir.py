@@ -3,8 +3,8 @@ import unittest
 from tests.fixtures import SourcePkgFixture, HomeDirFixture
 
 class TestTargetDir(unittest.TestCase):
-    def test_target_dir(self):
-        pkg = SourcePkgFixture('target-dir')
+    def test_basic(self):
+        pkg = SourcePkgFixture('target-dir-basic')
 
         with HomeDirFixture() as home:
             with pkg.install_context(home.opts):
@@ -14,3 +14,16 @@ class TestTargetDir(unittest.TestCase):
                 self.assertTrue(path.is_dir())
                 self.assertTrue(file_path.is_symlink())
                 self.assertEqual(file_path.resolve(), pkg.path / file_path.name)
+    
+    def test_multi(self):
+        pkg = SourcePkgFixture('target-dir-multi')
+
+        with HomeDirFixture() as home:
+            path = home.path / '.config' / 'b'
+            path.mkdir(parents=True)
+
+            with pkg.install_context(home.opts):
+                self.assertFalse((home.path / '.config' / 'a').exists())
+                self.assertFalse((home.path / '.config' / 'c').exists())
+                self.assertTrue(path.is_dir())
+                self.assertTrue((path / 'someconfig.json').is_symlink())

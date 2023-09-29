@@ -1,0 +1,8 @@
+{
+  "name": "target-dir-multi",
+  "targetDir": [
+    "${home}/.config/a",
+    "${home}/.config/b",
+    "${home}/.config/c"
+  ]
+}
