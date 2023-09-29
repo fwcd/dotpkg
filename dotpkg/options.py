@@ -9,3 +9,7 @@ class Options:
     assume_yes: bool = False
     safe_mode: bool = False
     update_install_manifest: bool = False
+
+    @property
+    def state_dir(self) -> Path:
+        return self.home / '.local' / 'state' / 'dotpkg'

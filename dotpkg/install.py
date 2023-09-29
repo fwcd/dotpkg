@@ -2,7 +2,7 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import Callable, Iterable, Any, cast
 
-from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_PATH, INSTALL_MANIFEST_VERSION
+from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_VERSION
 from dotpkg.manifest import manifest_name, find_target_dir, resolve_ignores, resolve_manifest_str
 from dotpkg.options import Options
 from dotpkg.utils.file import path_digest, copy, move, link, touch, remove
@@ -32,13 +32,17 @@ def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Opt
     else:
         link(src_path.resolve(), target_path, opts)
 
+def install_manifest_path(opts: Options) -> Path:
+    return opts.state_dir / INSTALL_MANIFEST_NAME
+
 def read_install_manifest(opts: Options) -> dict[str, Any]:
     try:
-        with open(INSTALL_MANIFEST_PATH, 'r') as f:
+        path = install_manifest_path(opts)
+        with open(path, 'r') as f:
             manifest = json.load(f)
             version = manifest.get('version', 0)
             if version < INSTALL_MANIFEST_VERSION:
-                if not confirm(f'An older install manifest with version {version} (current is {INSTALL_MANIFEST_VERSION}) exists at {INSTALL_MANIFEST_PATH}, which may be incompatible with the current version. Should this be used anyway? If no, the old one will be ignored/overwritten.', opts):
+                if not confirm(f'An older install manifest with version {version} (current is {INSTALL_MANIFEST_VERSION}) exists at {install_manifest_path(opts)}, which may be incompatible with the current version. Should this be used anyway? If no, the old one will be ignored/overwritten.', opts):
                     manifest['version'] = INSTALL_MANIFEST_VERSION
                 else:
                     manifest = None
@@ -50,13 +54,14 @@ def read_install_manifest(opts: Options) -> dict[str, Any]:
     }
 
 def write_install_manifest(manifest: dict[str, Any], opts: Options):
-    if INSTALL_MANIFEST_PATH.exists():
-        note(f'Updating {INSTALL_MANIFEST_PATH}')
+    path = install_manifest_path(opts)
+    if path.exists():
+        note(f'Updating {path}')
     else:
-        print(f'Creating {INSTALL_MANIFEST_PATH}')
+        print(f'Creating {path}')
     if not opts.dry_run:
-        INSTALL_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(INSTALL_MANIFEST_PATH, 'w') as f:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w') as f:
             json.dump(manifest, f, indent=2)
 
 def run_script(name: str, src_dir: Path, manifest: dict[str, Any], opts: Options):
@@ -93,7 +98,7 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
             uninstall(src_dir, manifest, opts)
         elif target_dir.resolve() != existing_target_dir.resolve():
             warn('\n'.join([
-                f'This will leave the installed files at the old target dir {existing_target_dir} orphaned, since the install for {install_key} in {INSTALL_MANIFEST_PATH} will be repointed to {target_dir}. These files are affected:',
+                f'This will leave the installed files at the old target dir {existing_target_dir} orphaned, since the install for {install_key} in {install_manifest_path(opts)} will be repointed to {target_dir}. These files are affected:',
                 *[f'  {path}' for path in existing_paths],
             ]))
 
