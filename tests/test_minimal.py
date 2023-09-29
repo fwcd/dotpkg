@@ -7,7 +7,6 @@ class TestMinimal(unittest.TestCase):
         pkg = SourcePkgFixture('minimal')
 
         with HomeDirFixture() as home:
-            # TODO: Move pkg.install/uninstall into a context manager?
-            pkg.install(home.opts)
-            self.assertTrue((home.path / 'hello.txt').is_symlink())
-            pkg.uninstall(home.opts)
+            with pkg.install_context(home.opts):
+                self.assertTrue((home.path / 'hello.txt').is_symlink())
+            self.assertTrue(home.is_empty)

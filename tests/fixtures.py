@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -16,14 +17,20 @@ class SourcePkgFixture:
     def path(self) -> Path:
         return TEST_PKGS / self.name
     
-    # TODO: Should we move install/uninstall to `HomeDirFixture`?
-
     def install(self, opts: Options):
         # TODO: Split up installation into more fine-grained methods and test them here...
         install_cmd([str(self.path)], opts=opts)
     
     def uninstall(self, opts: Options):
         uninstall_cmd([str(self.path)], opts=opts)
+
+    @contextmanager
+    def install_context(self, opts: Options):
+        try:
+            self.install(opts)
+            yield None
+        finally:
+            self.uninstall(opts)
 
 class HomeDirFixture:
     def __init__(self):
@@ -38,6 +45,10 @@ class HomeDirFixture:
     @property
     def path(self) -> Path:
         return Path(self.dir.name)
+    
+    @property
+    def is_empty(self) -> bool:
+        return next(self.path.iterdir(), None) is None
 
     @property
     def opts(self) -> Options:
