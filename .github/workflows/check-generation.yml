@@ -1,0 +1,29 @@
+name: Check Generation
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 14
+    - uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: pip3 install .
+    - name: Run code generation
+      run: scripts/generate-models
+    - name: Check that the generated files match the repo
+      run: |
+        diff=`git diff HEAD`
+        echo "$diff"
+        test -z "$diff"
