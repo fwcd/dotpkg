@@ -9,15 +9,15 @@ from typing import Literal
 from typing import Optional
 
 @dataclass
-class Installs:
+class InstallsEntry:
     '''An installed dotpkg.'''
     
     target_dir: Optional[str] = field(default_factory=lambda: None)
     '''The installation path of the dotpkg.'''
     
     @staticmethod
-    def from_dict(d: dict[str, Any]) -> Installs:
-        return Installs(
+    def from_dict(d: dict[str, Any]) -> InstallsEntry:
+        return InstallsEntry(
             target_dir=d.get('targetDir') or None,
         )
     
@@ -31,7 +31,7 @@ class Installs:
 class InstallsV1Manifest:
     '''A manifest keeping track of the installed locations of dotpkgs'''
     
-    installs: dict[str, Installs] = field(default_factory=lambda: {})
+    installs: dict[str, InstallsEntry] = field(default_factory=lambda: {})
     '''The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).'''
     
     version: Literal[1] = field(default_factory=lambda: 1)

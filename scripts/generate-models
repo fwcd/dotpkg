@@ -225,7 +225,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                 return Type(name, is_dataclass=True)
             elif 'additionalProperties' in value:
                 t = translate_schema(
-                    name=name,
+                    name=f'{name}Entry',
                     value=value['additionalProperties'],
                     output=output
                 )

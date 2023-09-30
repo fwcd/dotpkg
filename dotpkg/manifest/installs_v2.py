@@ -8,7 +8,7 @@ from typing import Any
 from typing import Literal
 
 @dataclass
-class Installs:
+class InstallsEntry:
     '''An installed dotpkg.'''
     
     target_dir: str
@@ -18,8 +18,8 @@ class Installs:
     '''The paths to the installed links.'''
     
     @staticmethod
-    def from_dict(d: dict[str, Any]) -> Installs:
-        return Installs(
+    def from_dict(d: dict[str, Any]) -> InstallsEntry:
+        return InstallsEntry(
             target_dir=d['targetDir'],
             paths=d.get('paths') or [],
         )
@@ -35,7 +35,7 @@ class Installs:
 class InstallsV2Manifest:
     '''A manifest keeping track of the installed locations of dotpkgs'''
     
-    installs: dict[str, Installs] = field(default_factory=lambda: {})
+    installs: dict[str, InstallsEntry] = field(default_factory=lambda: {})
     '''The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).'''
     
     version: Literal[2] = field(default_factory=lambda: 2)
