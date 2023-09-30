@@ -66,11 +66,11 @@ def touch(path: Path, opts: Options):
         path.touch()
 
 def remove(target_path: Path, opts: Options):
-    if target_path.is_dir():
-        print(f'Removing directory {target_path}')
-        if not opts.dry_run:
-            shutil.rmtree(target_path)
-    else:
+    if target_path.is_symlink() or not target_path.is_dir():
         print(f'Removing {target_path}')
         if not opts.dry_run:
             target_path.unlink()
+    else:
+        print(f'Removing directory {target_path}')
+        if not opts.dry_run:
+            shutil.rmtree(target_path)
