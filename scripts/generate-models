@@ -138,6 +138,13 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
             raise ValueError(f'Unknown type {t}')
 
 def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    def field_from_dict(f: Field) -> str:
+        # TODO: Defaults
+        s = f"d['{f.original_name}']"
+        if f.type.is_dataclass:
+            s = f'{format_type(f.type)}.from_dict({s})'
+        return s
+
     output.imports.add('from typing import Any')
     return Function(
         decorators=['@staticmethod'],
@@ -146,12 +153,19 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
         return_type=Type(dataclass.name, is_dataclass=True),
         body=[
             f'return {dataclass.name}(',
-            *indent([f"{f.name}=d['{f.original_name}']," for f in dataclass.fields]),
+            *indent([f"{f.name}={field_from_dict(f)}," for f in dataclass.fields]),
             f')',
         ],
     )
 
 def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    def field_to_dict(f: Field) -> str:
+        # TODO: Defaults
+        s = f'self.{f.name}'
+        if f.type.is_dataclass:
+            s += '.to_dict()'
+        return s
+
     output.imports.add('from typing import Any')
     return Function(
         decorators=[],
@@ -160,7 +174,7 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
         return_type=Type('dict[str, Any]'),
         body=[
             'return {',
-            *indent([f"'{f.original_name}': self.{f.name}," for f in dataclass.fields]),
+            *indent([f"'{f.original_name}': {field_to_dict(f)}," for f in dataclass.fields]),
             '}',
         ],
     )

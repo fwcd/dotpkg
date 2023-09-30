@@ -112,7 +112,7 @@ class Dotpkg:
             copy=d['copy'],
             is_scripts_only=d['isScriptsOnly'],
             requires=d['requires'],
-            scripts=d['scripts'],
+            scripts=Scripts.from_dict(d['scripts']),
         )
     
     def to_dict(self) -> dict[str, Any]:
@@ -131,7 +131,7 @@ class Dotpkg:
             'copy': self.copy,
             'isScriptsOnly': self.is_scripts_only,
             'requires': self.requires,
-            'scripts': self.scripts,
+            'scripts': self.scripts.to_dict(),
         }
     
 
