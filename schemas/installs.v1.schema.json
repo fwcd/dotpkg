@@ -5,13 +5,14 @@
   "type": "object",
   "properties": {
     "version": {
-      "type": "number",
+      "type": "integer",
       "description": "The version of the install manifest.",
       "const": 1
     },
     "installs": {
       "type": "object",
       "description": "The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).",
+      "default": {},
       "additionalProperties": {
         "type": "object",
         "description": "An installed dotpkg.",

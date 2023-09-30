@@ -1,10 +1,10 @@
 import unittest
 
-from tests.fixtures import SourcePkgFixture, HomeDirFixture
+from tests.fixtures import DotpkgFixture, HomeDirFixture
 
 class TestCopy(unittest.TestCase):
     def test_copy(self):
-        pkg = SourcePkgFixture('copy')
+        pkg = DotpkgFixture('copy')
 
         with HomeDirFixture() as home:
             with pkg.install_context(home.opts):

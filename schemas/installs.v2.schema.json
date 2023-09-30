@@ -1,17 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
-  "title": "Install manifest format version 1",
+  "title": "Install manifest format version 2",
   "description": "A manifest keeping track of the installed locations of dotpkgs",
   "type": "object",
   "properties": {
     "version": {
-      "type": "number",
+      "type": "integer",
       "description": "The version of the install manifest.",
       "const": 2
     },
     "installs": {
       "type": "object",
       "description": "The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).",
+      "default": {},
       "additionalProperties": {
         "type": "object",
         "description": "An installed dotpkg.",
@@ -20,14 +21,24 @@
             "type": "string",
             "description": "The installation path of the dotpkg."
           },
+          "srcPaths": {
+            "type": "array",
+            "description": "The paths of the linked-to files.",
+            "default": [],
+            "items": {
+              "type": "string"
+            }
+          },
           "paths": {
             "type": "array",
             "description": "The paths to the installed links.",
+            "default": [],
             "items": {
               "type": "string"
             }
           }
-        }
+        },
+        "required": ["targetDir"]
       }
     }
   }

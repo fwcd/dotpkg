@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+
+# Generates Python dataclasses from the JSON schemas.
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Optional, cast
+
+import re
+import json
+
+PATH = Path(__file__).resolve()
+ROOT = PATH.parent.parent
+SCHEMAS_ROOT = ROOT / 'schemas'
+GENERATION_ROOT = ROOT / 'dotpkg' / 'manifest'
+
+@dataclass
+class Type:
+    raw: str
+    args: list[str] = field(default_factory=list)
+    is_dataclass: bool = False
+
+@dataclass
+class Field:
+    name: str
+    original_name: str
+    type: Type
+    default: Optional[Any] = None
+    original_default: Optional[Any] = None
+    description: Optional[str] = None
+
+@dataclass
+class Parameter:
+    name: str
+    type: Optional[Type] = None
+
+@dataclass
+class Function:
+    decorators: list[str]
+    name: str
+    parameters: list[Parameter]
+    return_type: Type
+    body: list[str]
+
+@dataclass
+class Typealias:
+    name: str
+    type: Type
+
+@dataclass
+class Dataclass:
+    name: str
+    description: Optional[str] = None
+    fields: list[Field] = field(default_factory=list)
+    methods: list[Function] = field(default_factory=list)
+
+@dataclass
+class Output:
+    imports: set[str] = field(default_factory=set)
+    typealiases: list[Typealias] = field(default_factory=list)
+    dataclasses: list[Dataclass] = field(default_factory=list)
+
+@dataclass
+class Quote:
+    syntax: str
+
+def lower_all(components: list[str]) -> list[str]:
+    return [c.lower() for c in components]
+
+def from_schema_filename(raw: str) -> list[str]:
+    return raw.split('.')[:-2]
+
+def from_camel_case(raw: str) -> list[str]:
+    return lower_all(re.split(r'(?<=[a-z])(?=[A-Z])', raw))
+
+def to_snake_case(components: list[str]) -> str:
+    return '_'.join(components)
+
+def to_pascal_case(components: list[str]) -> str:
+    return ''.join(c.capitalize() for c in components)
+
+def to_manifest_name(components: list[str]) -> str:
+    return f'{to_pascal_case(components)}Manifest'
+
+def indent(lines: list[str]) -> list[str]:
+    return [f'    {l}' for l in lines]
+
+def format_type(type: Type) -> str:
+    s = type.raw
+    if type.args:
+        s += f"[{', '.join(type.args)}]"
+    return s
+
+def format_value(value: Any) -> str:
+    if isinstance(value, str):
+        # TODO: Escape quotes
+        return f"'{value}'"
+    elif isinstance(value, int) or isinstance(value, float) or isinstance(value, bool):
+        return str(value)
+    elif isinstance(value, Quote):
+        return value.syntax
+    elif isinstance(value, list):
+        value = cast(list[Any], value)
+        return f"[{', '.join(format_value(v) for v in value)}]"
+    elif isinstance(value, dict):
+        value = cast(dict[Any, Any], value)
+        return f"{{{', '.join(f'{format_value(k)}: {format_value(v)}' for k, v in value.items())}}}"
+    else:
+        raise ValueError(f'Cannot format value {value} of type {type(value)}')
+
+def format_field(field: Field, output: Output) -> list[str]:
+    s = f'{field.name}: {format_type(field.type)}'
+    if field.default is not None:
+        output.imports.add('from dataclasses import field')
+        s += f' = field(default_factory=lambda: {format_value(field.default)})'
+    return [
+        s,
+        *([f"'''{field.description}'''"] if field.description else []),
+    ]
+
+def format_parameter(parameter: Parameter) -> str:
+    return f'{parameter.name}: {format_type(parameter.type)}' if parameter.type else parameter.name
+
+def format_function(function: Function) -> list[str]:
+    return [
+        *function.decorators,
+        f"def {function.name}({', '.join(map(format_parameter, function.parameters))}) -> {format_type(function.return_type)}:",
+        *indent(function.body),
+    ]
+
+def format_typealias(typealias: Typealias, output: Output) -> list[str]:
+    return [f'{typealias.name} = {format_type(typealias.type)}']
+
+def format_dataclass(dataclass: Dataclass, output: Output) -> list[str]:
+    output.imports.add('from dataclasses import dataclass')
+    return [
+        '@dataclass',
+        f'class {dataclass.name}:',
+        *indent([
+            *([f"'''{dataclass.description}'''", ''] if dataclass.description else []),
+            *[l for f in sorted(dataclass.fields, key=lambda f: [f.default is not None, f.name]) for l in [*format_field(f, output), '']],
+            *[l for f in dataclass.methods for l in [*format_function(f), '']],
+        ]),
+    ]
+
+def format_output(output: Output) -> str:
+    typealiases = ['\n'.join(format_typealias(t, output)) for t in output.typealiases]
+    dataclasses = ['\n'.join(format_dataclass(d, output)) for d in output.dataclasses]
+    return '\n\n'.join([
+        '\n'.join(sorted(output.imports)),
+        *typealiases,
+        *dataclasses,
+        '',
+    ])
+
+def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
+    '''
+    Translates the given JSON schema, adding dataclasses for nested types and
+    imports to the output as required.
+    '''
+
+    if 'const' in value:
+        output.imports.add('from typing import Literal')
+        return Type('Literal', args=[format_value(value['const'])])
+    elif 'enum' in value:
+        output.imports.add('from typing import Literal')
+        return Type('Literal', args=[format_value(v) for v in value['enum']])
+    elif '$ref' in value:
+        ref = from_schema_filename(value['$ref'])
+        output.imports.add(f'from .{to_snake_case(ref)} import {to_manifest_name(ref)}')
+        return Type(to_manifest_name(ref), is_dataclass=True)
+    elif 'anyOf' in value:
+        output.imports.add('from typing import Union')
+        return Type('Union', args=[
+            format_type(translate_schema(
+                name=name,
+                value=variant,
+                output=output,
+            ))
+            for variant in value['anyOf']
+        ])
+
+    match value['type']:
+        case 'string':
+            return Type('str')
+        case 'boolean':
+            return Type('bool')
+        case 'integer':
+            return Type('int')
+        case 'number':
+            return Type('float')
+        case 'array':
+            item_type = translate_schema(
+                name=name,
+                value=value['items'],
+                output=output,
+            )
+            return Type('list', args=[format_type(item_type)])
+        case 'object':
+            required = set(value.get('required', []))
+            if 'properties' in value:
+                fields: list[Field] = []
+                for key, prop in value['properties'].items():
+                    field_type = translate_schema(
+                        name=key.capitalize(),
+                        value=prop,
+                        output=output,
+                    )
+                    original_default = prop.get('const') or prop.get('default')
+                    if key not in required and original_default is None:
+                        output.imports.add('from typing import Optional')
+                        field_type = Type('Optional', args=[format_type(field_type)])
+                        original_default = Quote('None')
+                    default = original_default
+                    if field_type.is_dataclass:
+                        if default == {}:
+                            default = Quote(f'{field_type.raw}()')
+                        else:
+                            raise ValueError('Non-empty default value are not supported yet for dataclasses')
+                    fields.append(Field(
+                        name=to_snake_case(from_camel_case(key)),
+                        original_name=key,
+                        type=field_type,
+                        default=default,
+                        original_default=original_default,
+                        description=prop.get('description'),
+                    ))
+                output.dataclasses.append(Dataclass(
+                    name=name,
+                    description=value.get('description'),
+                    fields=fields,
+                ))
+                return Type(name, is_dataclass=True)
+            elif 'additionalProperties' in value:
+                t = translate_schema(
+                    name=f'{name}Entry',
+                    value=value['additionalProperties'],
+                    output=output
+                )
+                return Type('dict', args=['str', format_type(t)])
+            else:
+                output.imports.add('from typing import Any')
+                return Type('dict', args=['str', 'Any'])
+        case t:
+            raise ValueError(f'Unknown type {t}')
+
+def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    '''
+    Generates a method for parsing the given dataclass from a dictionary,
+    adding imports to the output as needed.
+    '''
+
+    def field_from_dict(f: Field) -> str:
+        if f.original_default is not None:
+            s = f"d.get('{f.original_name}') or {format_value(f.original_default)}"
+        else:
+            s = f"d['{f.original_name}']"
+        if f.type.is_dataclass:
+            s = f'{format_type(f.type)}.from_dict({s})'
+        return s
+
+    output.imports.add('from __future__ import annotations')
+    output.imports.add('from typing import Any')
+
+    return Function(
+        decorators=['@staticmethod'],
+        name='from_dict',
+        parameters=[Parameter(name='d', type=Type('dict', args=['str', 'Any']))],
+        return_type=Type(dataclass.name, is_dataclass=True),
+        body=[
+            f'return {dataclass.name}(',
+            *indent([f"{f.name}={field_from_dict(f)}," for f in dataclass.fields]),
+            f')',
+        ],
+    )
+
+def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    '''
+    Generates a method for converting the given dataclass to a dictionary,
+    adding imports to the output as needed.
+    '''
+
+    def field_to_dict(f: Field) -> str:
+        s = f'self.{f.name}'
+        if f.type.is_dataclass:
+            s += '.to_dict()'
+        return s
+
+    output.imports.add('from typing import Any')
+
+    return Function(
+        decorators=[],
+        name='to_dict',
+        parameters=[Parameter(name='self')],
+        return_type=Type('dict', args=['str', 'Any']),
+        body=[
+            'return {',
+            *indent([f"'{f.original_name}': {field_to_dict(f)}," for f in dataclass.fields]),
+            '}',
+        ],
+    )
+    pass
+
+def main():
+    for path in SCHEMAS_ROOT.iterdir():
+        output = Output()
+        name = from_schema_filename(path.name)
+
+        with open(path, 'r') as f:
+            raw = json.load(f)
+            top_level_type = translate_schema(
+                name=to_manifest_name(name),
+                value=raw,
+                output=output
+            )
+
+            if not top_level_type.is_dataclass:
+                output.typealiases.append(Typealias(name=to_manifest_name(name), type=top_level_type))
+        
+        for dataclass in output.dataclasses:
+            dataclass.methods.append(generate_from_dict_method(dataclass, output))
+            dataclass.methods.append(generate_to_dict_method(dataclass, output))
+        
+        with open(GENERATION_ROOT / f'{to_snake_case(name)}.py', 'w') as f:
+            raw = '\n'.join([
+                f'# NOTE: This file is auto-generated from {path.relative_to(ROOT)} via {PATH.relative_to(ROOT)}',
+                '# Please do not edit it manually and adjust/re-run the script instead!',
+                '',
+                format_output(output)
+            ])
+            f.write(raw)
+            
+
+if __name__ == '__main__':
+    main()

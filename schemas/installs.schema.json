@@ -4,8 +4,12 @@
   "description": "A manifest keeping track of the installed locations of dotpkgs",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://raw.githubusercontent.com/fwcd/dotpkg/main/schemas/installs.schema.json"
+    },
     "version": {
-      "type": "number",
+      "type": "integer",
       "description": "The version of the install manifest.",
       "default": 0
     }
