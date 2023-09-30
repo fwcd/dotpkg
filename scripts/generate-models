@@ -4,7 +4,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import re
 import json
@@ -24,6 +24,7 @@ class Field:
     name: str
     original_name: str
     type: Type
+    default: Optional[Any] = None
     description: Optional[str] = None
 
 @dataclass
@@ -84,9 +85,28 @@ def format_type(type: Type) -> str:
         s += f"[{', '.join(type.args)}]"
     return s
 
-def format_field(field: Field) -> list[str]:
+def format_value(value: Any) -> str:
+    if isinstance(value, str):
+        # TODO: Escape quotes
+        return f"'{value}'"
+    elif isinstance(value, int) or isinstance(value, float) or isinstance(value, bool):
+        return str(value)
+    elif isinstance(value, list):
+        value = cast(list[Any], value)
+        return f"[{', '.join(format_value(v) for v in value)}]"
+    elif isinstance(value, dict):
+        value = cast(dict[Any, Any], value)
+        return f"{{{', '.join(f'{format_value(k)}: {format_value(v)}' for k, v in value.items())}}}"
+    else:
+        raise ValueError(f'Cannot format value {value} of type {type(value)}')
+
+def format_field(field: Field, output: Output) -> list[str]:
+    s = f'{field.name}: {format_type(field.type)}'
+    if field.default is not None:
+        output.imports.add('from dataclasses import field')
+        s += f' = field(default_factory=lambda: {format_value(field.default)})'
     return [
-        f'{field.name}: {format_type(field.type)}',
+        s,
         *([f"'''{field.description}'''"] if field.description else []),
     ]
 
@@ -100,25 +120,28 @@ def format_function(function: Function) -> list[str]:
         *indent(function.body),
     ]
 
-def format_typealias(typealias: Typealias) -> list[str]:
+def format_typealias(typealias: Typealias, output: Output) -> list[str]:
     return [f'{typealias.name} = {format_type(typealias.type)}']
 
-def format_dataclass(dataclass: Dataclass) -> list[str]:
+def format_dataclass(dataclass: Dataclass, output: Output) -> list[str]:
+    output.imports.add('from dataclasses import dataclass')
     return [
         '@dataclass',
         f'class {dataclass.name}:',
         *indent([
             *([f"'''{dataclass.description}'''", ''] if dataclass.description else []),
-            *[l for f in dataclass.fields for l in [*format_field(f), '']],
+            *[l for f in sorted(dataclass.fields, key=lambda f: [f.default is not None, f.name]) for l in [*format_field(f, output), '']],
             *[l for f in dataclass.methods for l in [*format_function(f), '']],
         ]),
     ]
 
 def format_output(output: Output) -> str:
+    typealiases = ['\n'.join(format_typealias(t, output)) for t in output.typealiases]
+    dataclasses = ['\n'.join(format_dataclass(d, output)) for d in output.dataclasses]
     return '\n\n'.join([
         '\n'.join(sorted(output.imports)),
-        *('\n'.join(format_typealias(t)) for t in output.typealiases),
-        *('\n'.join(format_dataclass(d)) for d in output.dataclasses),
+        *typealiases,
+        *dataclasses,
         '',
     ])
 
@@ -169,6 +192,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                             value=prop,
                             output=output,
                         ),
+                        default=prop.get('default'),
                         description=prop.get('description'),
                     )
                     for key, prop in value['properties'].items()
@@ -205,7 +229,9 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
             s = f'{format_type(f.type)}.from_dict({s})'
         return s
 
+    output.imports.add('from __future__ import annotations')
     output.imports.add('from typing import Any')
+
     return Function(
         decorators=['@staticmethod'],
         name='from_dict',
@@ -232,6 +258,7 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
         return s
 
     output.imports.add('from typing import Any')
+
     return Function(
         decorators=[],
         name='to_dict',
@@ -260,10 +287,6 @@ def main():
 
             if not top_level_type.is_dataclass:
                 output.typealiases.append(Typealias(name=to_manifest_name(name), type=top_level_type))
-        
-        if output.dataclasses:
-            output.imports.add('from __future__ import annotations')
-            output.imports.add('from dataclasses import dataclass')
         
         for dataclass in output.dataclasses:
             dataclass.methods.append(generate_from_dict_method(dataclass, output))

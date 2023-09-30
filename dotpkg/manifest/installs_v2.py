@@ -6,11 +6,11 @@ from typing import Any
 class Installs:
     '''An installed dotpkg.'''
     
-    target_dir: str
-    '''The installation path of the dotpkg.'''
-    
     paths: str
     '''The paths to the installed links.'''
+    
+    target_dir: str
+    '''The installation path of the dotpkg.'''
     
     @staticmethod
     def from_dict(d: dict[str, Any]) -> Installs:
@@ -30,11 +30,11 @@ class Installs:
 class InstallsV2Manifest:
     '''A manifest keeping track of the installed locations of dotpkgs'''
     
-    version: int
-    '''The version of the install manifest.'''
-    
     installs: dict[str, Installs]
     '''The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).'''
+    
+    version: int
+    '''The version of the install manifest.'''
     
     @staticmethod
     def from_dict(d: dict[str, Any]) -> InstallsV2Manifest:

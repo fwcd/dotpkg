@@ -25,11 +25,11 @@ class Installs:
 class InstallsV1Manifest:
     '''A manifest keeping track of the installed locations of dotpkgs'''
     
-    version: int
-    '''The version of the install manifest.'''
-    
     installs: dict[str, Installs]
     '''The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).'''
+    
+    version: int
+    '''The version of the install manifest.'''
     
     @staticmethod
     def from_dict(d: dict[str, Any]) -> InstallsV1Manifest:
