@@ -1,4 +1,4 @@
-name: Check Generation
+name: Check
 
 on:
   push:
@@ -20,6 +20,8 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: pip3 install .
+    - name: Install Pyright
+      run: npm install -g pyright
     - name: Run code generation
       run: scripts/generate-models
     - name: Check that the generated files match the repo
@@ -27,3 +29,7 @@ jobs:
         diff=`git diff HEAD`
         echo "$diff"
         test -z "$diff"
+    - name: Typecheck
+      run: pyright
+    - name: Run tests
+      run: python3 -m unittest
