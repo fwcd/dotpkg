@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from dotpkg.constants import DOTPKG_MANIFEST_NAME, IGNORED_NAMES
+from dotpkg.options import Options
 from dotpkg.utils.log import error
 
 import json
@@ -33,8 +34,8 @@ class FoundDotpkgs:
     dotpkgs: list[Dotpkg]
     is_batch: bool
 
-def cwd_dotpkgs() -> FoundDotpkgs:
-    cwd = Path.cwd().resolve()
+def cwd_dotpkgs(opts: Options) -> FoundDotpkgs:
+    cwd = opts.cwd.resolve()
 
     # Prefer current directory if it contains a manifest
     if (cwd / DOTPKG_MANIFEST_NAME).exists():

@@ -15,7 +15,7 @@ def install_cmd(raw_dotpkg_paths: list[str], opts: Options):
     if raw_dotpkg_paths:
         dotpkgs = [Dotpkg(Path(p)) for p in raw_dotpkg_paths]
     else:
-        found = cwd_dotpkgs()
+        found = cwd_dotpkgs(opts)
         dotpkgs = found.dotpkgs
         is_batch = found.is_batch
 
@@ -43,7 +43,7 @@ def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
     if raw_dotpkg_paths:
         dotpkgs = [Dotpkg(Path(p)) for p in raw_dotpkg_paths]
     else:
-        found = cwd_dotpkgs()
+        found = cwd_dotpkgs(opts)
         dotpkgs = found.dotpkgs
         is_batch = found.is_batch
 

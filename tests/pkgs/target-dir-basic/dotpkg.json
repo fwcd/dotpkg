@@ -1,0 +1,7 @@
+{
+  "name": "target-dir-basic",
+  "createTargetDirIfNeeded": true,
+  "targetDir": [
+    "${home}/.config/someapp"
+  ]
+}
