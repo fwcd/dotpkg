@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 @dataclass
 class Type:
     raw: str
+    args: list[str] = field(default_factory=list)
     is_dataclass: bool = False
 
 @dataclass
@@ -58,7 +59,10 @@ def indent(lines: list[str]) -> list[str]:
     return [f'    {l}' for l in lines]
 
 def format_type(type: Type) -> str:
-    return type.raw
+    s = type.raw
+    if type.args:
+        s += f"[{', '.join(type.args)}]"
+    return s
 
 def format_field(field: Field) -> list[str]:
     return [
@@ -123,17 +127,17 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                     description=value.get('description'),
                     fields=fields,
                 ))
-                return Type(raw=name, is_dataclass=True)
+                return Type(name, is_dataclass=True)
             elif 'additionalProperties' in value:
                 t = translate_schema(
                     name=name,
                     value=value['additionalProperties'],
                     output=output
                 )
-                return Type(f'dict[str, {format_type(t)}]')
+                return Type('dict', args=['str', format_type(t)])
             else:
                 output.imports.add('from typing import Any')
-                return Type('dict[str, Any]')
+                return Type('dict', args=['str', 'Any'])
         case t:
             raise ValueError(f'Unknown type {t}')
 
@@ -149,7 +153,7 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     return Function(
         decorators=['@staticmethod'],
         name='from_dict',
-        parameters=[Parameter(name='d', type=Type('dict[str, Any]'))],
+        parameters=[Parameter(name='d', type=Type('dict', args=['str', 'Any']))],
         return_type=Type(dataclass.name, is_dataclass=True),
         body=[
             f'return {dataclass.name}(',
@@ -171,7 +175,7 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
         decorators=[],
         name='to_dict',
         parameters=[Parameter(name='self')],
-        return_type=Type('dict[str, Any]'),
+        return_type=Type('dict', args=['str', 'Any']),
         body=[
             'return {',
             *indent([f"'{f.original_name}': {field_to_dict(f)}," for f in dataclass.fields]),
