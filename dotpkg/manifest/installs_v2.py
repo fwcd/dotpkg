@@ -24,15 +24,15 @@ class InstallsEntry:
     def from_dict(d: dict[str, Any]) -> InstallsEntry:
         return InstallsEntry(
             target_dir=d['targetDir'],
-            src_paths=d.get('srcPaths') or [],
-            paths=d.get('paths') or [],
+            src_paths=[v for v in (d.get('srcPaths') or [])],
+            paths=[v for v in (d.get('paths') or [])],
         )
     
     def to_dict(self) -> dict[str, Any]:
         return {
             'targetDir': self.target_dir,
-            'srcPaths': [v for v in self.src_paths],
-            'paths': [v for v in self.paths],
+            'srcPaths': [(v) for v in (self.src_paths)],
+            'paths': [(v) for v in (self.paths)],
         }
     
 
@@ -50,13 +50,13 @@ class InstallsV2Manifest:
     def from_dict(d: dict[str, Any]) -> InstallsV2Manifest:
         return InstallsV2Manifest(
             version=d.get('version') or 2,
-            installs=d.get('installs') or {},
+            installs={k: InstallsEntry.from_dict(v) for k, v in (d.get('installs') or {}).items()},
         )
     
     def to_dict(self) -> dict[str, Any]:
         return {
             'version': self.version,
-            'installs': {k: v.to_dict() for k, v in self.installs.items()},
+            'installs': {k: (v.to_dict()) for k, v in (self.installs).items()},
         }
     
 

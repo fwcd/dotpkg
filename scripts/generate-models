@@ -260,14 +260,23 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     adding imports to the output as needed.
     '''
 
+    def from_dict_call(expr: str, t: Type) -> str:
+        if t.is_dataclass:
+            return f'{format_type(t)}.from_dict({expr})'
+        match t.raw:
+            case 'list':
+                return f"[{from_dict_call('v', t.args[0])} for v in ({expr})]"
+            case 'dict':
+                return f"{{k: {from_dict_call('v', t.args[1])} for k, v in ({expr}).items()}}"
+            case _:
+                return expr
+
     def field_from_dict(f: Field) -> str:
         if f.original_default is not None:
             s = f"d.get('{f.original_name}') or {format_value(f.original_default)}"
         else:
             s = f"d['{f.original_name}']"
-        if f.type.is_dataclass:
-            s = f'{format_type(f.type)}.from_dict({s})'
-        return s
+        return from_dict_call(s, f.type)
 
     output.imports.add('from __future__ import annotations')
     output.imports.add('from typing import Any')
@@ -295,9 +304,9 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
             return f'{expr}.to_dict()'
         match t.raw:
             case 'list':
-                return f"[{to_dict_call('v', t.args[0])} for v in {expr}]"
+                return f"[({to_dict_call('v', t.args[0])}) for v in ({expr})]"
             case 'dict':
-                return f"{{k: {to_dict_call('v', t.args[1])} for k, v in {expr}.items()}}"
+                return f"{{k: ({to_dict_call('v', t.args[1])}) for k, v in ({expr}).items()}}"
             case _:
                 return expr
 

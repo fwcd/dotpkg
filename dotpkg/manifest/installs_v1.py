@@ -41,13 +41,13 @@ class InstallsV1Manifest:
     def from_dict(d: dict[str, Any]) -> InstallsV1Manifest:
         return InstallsV1Manifest(
             version=d.get('version') or 1,
-            installs=d.get('installs') or {},
+            installs={k: InstallsEntry.from_dict(v) for k, v in (d.get('installs') or {}).items()},
         )
     
     def to_dict(self) -> dict[str, Any]:
         return {
             'version': self.version,
-            'installs': {k: v.to_dict() for k, v in self.installs.items()},
+            'installs': {k: (v.to_dict()) for k, v in (self.installs).items()},
         }
     
 
