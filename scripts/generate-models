@@ -161,6 +161,9 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
     if 'const' in value:
         output.imports.add('from typing import Literal')
         return Type('Literal', args=[format_value(value['const'])])
+    elif 'enum' in value:
+        output.imports.add('from typing import Literal')
+        return Type('Literal', args=[format_value(v) for v in value['enum']])
     elif '$ref' in value:
         ref = from_schema_filename(value['$ref'])
         output.imports.add(f'from .{to_snake_case(ref)} import {to_manifest_name(ref)}')

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
+from typing import Literal
 from typing import Optional
 
 @dataclass
@@ -82,7 +83,7 @@ class DotpkgManifest:
     renames: dict[str, str] = field(default_factory=lambda: {})
     '''A set of rename rules that are applied to the symlink names. If empty or left unspecified, the file names are the same as their originals.'''
     
-    requires: Optional[str] = field(default_factory=lambda: None)
+    requires: Optional[Literal['logout', 'reboot']] = field(default_factory=lambda: None)
     '''Whether (un)installation requires logging out or a reboot of the computer.'''
     
     requires_on_path: list[str] = field(default_factory=lambda: [])
