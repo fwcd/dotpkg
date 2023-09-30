@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Optional
+
+import re
+import json
+
+ROOT = Path(__file__).resolve().parent.parent
+
+@dataclass
+class Field:
+    name: str
+    type: str
+
+@dataclass
+class Dataclass:
+    name: str
+    description: Optional[str] = None
+    fields: list[Field] = field(default_factory=lambda: [])
+
+@dataclass
+class Output:
+    imports: set[str] = field(default_factory=set)
+    dataclasses: list[Dataclass] = field(default_factory=lambda: [])
+
+def from_camel_case(raw: str) -> list[str]:
+    return [c.lower() for c in re.split(r'(?<=[a-z])(?=[A-Z])', raw)]
+
+def to_snake_case(components: list[str]) -> str:
+    return '_'.join(components)
+
+def format_field(field: Field) -> str:
+    return f'{field.name}: {field.type}'
+
+def format_dataclass(dataclass: Dataclass) -> str:
+    return '\n'.join([
+        '@dataclass',
+        f'class {dataclass.name}:',
+        *([f"    '''{dataclass.description}'''"] if dataclass.description else []),
+        *[f'    {format_field(f)}' for f in dataclass.fields],
+    ])
+
+def translate_schema(name: str, value: dict[str, Any], output: Output) -> str:
+    match value['type']:
+        case 'string':
+            return 'str'
+        case 'boolean':
+            return 'bool'
+        case 'integer':
+            return 'int'
+        case 'number':
+            return 'float'
+        case 'array':
+            return translate_schema(
+                name=name,
+                value=value['items'],
+                output=output,
+            )
+        case 'object':
+            if 'properties' in value:
+                fields = [
+                    Field(
+                        name=to_snake_case(from_camel_case(key)),
+                        type=translate_schema(
+                            name=key.capitalize(),
+                            value=prop,
+                            output=output,
+                        ),
+                    )
+                    for key, prop in value['properties'].items()
+                ]
+                output.dataclasses.append(Dataclass(
+                    name=name,
+                    description=value.get('description'),
+                    fields=fields,
+                ))
+                return name
+            elif 'additionalProperties' in value:
+                t = translate_schema(
+                    name=name,
+                    value=value['additionalProperties'],
+                    output=output
+                )
+                return f'dict[str, {t}]'
+            else:
+                output.imports.add('from typing import Any')
+                return 'dict[str, Any]'
+        case t:
+            raise ValueError(f'Unknown type {t}')
+
+def main():
+    for name in ['dotpkg', 'installs']:
+        output = Output()
+
+        with open(ROOT / 'schemas' / f'{name}.schema.json', 'r') as f:
+            raw = json.load(f)
+            translate_schema(
+                name=name.capitalize(),
+                value=raw,
+                output=output
+            )
+        
+        if output.dataclasses:
+            output.imports.add('from dataclasses import dataclass')
+        
+        with open(ROOT / 'dotpkg' / 'model' / f'{name}.py', 'w') as f:
+            raw = '\n\n'.join([
+                '\n'.join(output.imports),
+                *(format_dataclass(d) for d in output.dataclasses),
+                '',
+            ])
+            f.write(raw)
+            
+
+if __name__ == '__main__':
+    main()
