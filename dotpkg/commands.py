@@ -1,36 +1,14 @@
 from pathlib import Path
-from typing import Iterable, Optional
 
 from dotpkg.constants import IGNORED_NAMES
 from dotpkg.install import install, uninstall
-from dotpkg.manifest.dotpkg import DotpkgManifest
+from dotpkg.resolve import batch_skip_reason
 from dotpkg.model import DotpkgRef, DotpkgRefs
 from dotpkg.options import Options
 from dotpkg.utils.log import info, warn
 from dotpkg.utils.prompt import confirm
 
-import platform
-import shutil
 import sys
-
-def unsatisfied_path_requirements(manifest: DotpkgManifest) -> Iterable[str]:
-    for requirement in manifest.requires_on_path:
-        if not shutil.which(requirement):
-            yield requirement
-
-def batch_skip_reason(manifest: DotpkgManifest) -> Optional[str]:
-    unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
-    supported_platforms: set[str] = set(manifest.platforms)
-    our_platform = platform.system().lower()
-
-    if manifest.skip_during_batch_install:
-        return f'Batch-install'
-    if supported_platforms and (our_platform not in supported_platforms):
-        return f"Platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))}"
-    if unsatisfied_reqs:
-        return f"Could not find {', '.join(unsatisfied_reqs)} on PATH"
-
-    return None
 
 def cwd_dotpkgs(opts: Options) -> DotpkgRefs:
     cwd = opts.cwd.resolve()
