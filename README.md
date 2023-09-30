@@ -7,14 +7,14 @@ A package manager for your dotfiles.
 
 ## Why Dotpkg?
 
-- **Lightweight**: Pure Python 3.9 with no dependencies
+- **Lightweight**: Pure Python 3.10 with no dependencies
 - **JSON-configurable**: Easy to write, includes a schema for code completion
 - **Cross-platform**: Runs on Linux, macOS and Windows
 - **Flexible**: Configurable target locations, ignore lists, rename rules and more
 
 ## Usage
 
-First make sure to have Python 3.9+ installed. To create a dotfile package, set up a folder with the following layout (the top-level folder is assumed to be some folder, e.g. a Git repo, where you store all of your dotfiles):
+First make sure to have Python 3.10+ installed. To create a dotfile package, set up a folder with the following layout (the top-level folder is assumed to be some folder, e.g. a Git repo, where you store all of your dotfiles):
 
 ```
 dotfiles
