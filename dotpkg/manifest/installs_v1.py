@@ -47,7 +47,7 @@ class InstallsV1Manifest:
     def to_dict(self) -> dict[str, Any]:
         return {
             'version': self.version,
-            'installs': self.installs,
+            'installs': {k: v.to_dict() for k, v in self.installs.items()},
         }
     
 

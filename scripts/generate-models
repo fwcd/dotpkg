@@ -2,6 +2,7 @@
 
 # Generates Python dataclasses from the JSON schemas.
 
+from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, cast
@@ -17,7 +18,7 @@ GENERATION_ROOT = ROOT / 'dotpkg' / 'manifest'
 @dataclass
 class Type:
     raw: str
-    args: list[str] = field(default_factory=list)
+    args: list[Type] = field(default_factory=list)
     is_dataclass: bool = False
 
 @dataclass
@@ -92,7 +93,7 @@ def indent(lines: list[str]) -> list[str]:
 def format_type(type: Type) -> str:
     s = type.raw
     if type.args:
-        s += f"[{', '.join(type.args)}]"
+        s += f"[{', '.join(map(format_type, type.args))}]"
     return s
 
 def format_value(value: Any) -> str:
@@ -170,10 +171,10 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
 
     if 'const' in value:
         output.imports.add('from typing import Literal')
-        return Type('Literal', args=[format_value(value['const'])])
+        return Type('Literal', args=[Type(format_value(value['const']))])
     elif 'enum' in value:
         output.imports.add('from typing import Literal')
-        return Type('Literal', args=[format_value(v) for v in value['enum']])
+        return Type('Literal', args=[Type(format_value(v)) for v in value['enum']])
     elif '$ref' in value:
         ref = from_schema_filename(value['$ref'])
         output.imports.add(f'from .{to_snake_case(ref)} import {to_manifest_name(ref)}')
@@ -181,11 +182,11 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
     elif 'anyOf' in value:
         output.imports.add('from typing import Union')
         return Type('Union', args=[
-            format_type(translate_schema(
+            translate_schema(
                 name=name,
                 value=variant,
                 output=output,
-            ))
+            )
             for variant in value['anyOf']
         ])
 
@@ -204,7 +205,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                 value=value['items'],
                 output=output,
             )
-            return Type('list', args=[format_type(item_type)])
+            return Type('list', args=[item_type])
         case 'object':
             required = set(value.get('required', []))
             if 'properties' in value:
@@ -218,7 +219,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                     original_default = prop.get('const') or prop.get('default')
                     if key not in required and original_default is None:
                         output.imports.add('from typing import Optional')
-                        field_type = Type('Optional', args=[format_type(field_type)])
+                        field_type = Type('Optional', args=[field_type])
                         original_default = Constant(Quote('None'))
                     default = original_default
                     if field_type.is_dataclass:
@@ -246,10 +247,10 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                     value=value['additionalProperties'],
                     output=output
                 )
-                return Type('dict', args=['str', format_type(t)])
+                return Type('dict', args=[Type('str'), t])
             else:
                 output.imports.add('from typing import Any')
-                return Type('dict', args=['str', 'Any'])
+                return Type('dict', args=[Type('str'), Type('Any')])
         case t:
             raise ValueError(f'Unknown type {t}')
 
@@ -274,7 +275,7 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     return Function(
         decorators=['@staticmethod'],
         name='from_dict',
-        parameters=[Parameter(name='d', type=Type('dict', args=['str', 'Any']))],
+        parameters=[Parameter(name='d', type=Type('dict', args=[Type('str'), Type('Any')]))],
         return_type=Type(dataclass.name, is_dataclass=True),
         body=[
             f'return {dataclass.name}(',
@@ -289,11 +290,19 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
     adding imports to the output as needed.
     '''
 
+    def to_dict_call(expr: str, t: Type) -> str:
+        if t.is_dataclass:
+            return f'{expr}.to_dict()'
+        match t.raw:
+            case 'list':
+                return f"[{to_dict_call('v', t.args[0])} for v in {expr}]"
+            case 'dict':
+                return f"{{k: {to_dict_call('v', t.args[1])} for k, v in {expr}.items()}}"
+            case _:
+                return expr
+
     def field_to_dict(f: Field) -> str:
-        s = f'self.{f.name}'
-        if f.type.is_dataclass:
-            s += '.to_dict()'
-        return s
+        return to_dict_call(f'self.{f.name}', f.type)
 
     output.imports.add('from typing import Any')
 
@@ -301,7 +310,7 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
         decorators=[],
         name='to_dict',
         parameters=[Parameter(name='self')],
-        return_type=Type('dict', args=['str', 'Any']),
+        return_type=Type('dict', args=[Type('str'), Type('Any')]),
         body=[
             'return {',
             *indent([f"'{f.original_name}': {field_to_dict(f)}," for f in dataclass.fields]),

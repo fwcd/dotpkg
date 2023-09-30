@@ -31,8 +31,8 @@ class InstallsEntry:
     def to_dict(self) -> dict[str, Any]:
         return {
             'targetDir': self.target_dir,
-            'srcPaths': self.src_paths,
-            'paths': self.paths,
+            'srcPaths': [v for v in self.src_paths],
+            'paths': [v for v in self.paths],
         }
     
 
@@ -56,7 +56,7 @@ class InstallsV2Manifest:
     def to_dict(self) -> dict[str, Any]:
         return {
             'version': self.version,
-            'installs': self.installs,
+            'installs': {k: v.to_dict() for k, v in self.installs.items()},
         }
     
 
