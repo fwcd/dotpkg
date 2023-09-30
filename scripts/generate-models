@@ -9,6 +9,8 @@ from typing import Any, Optional
 import re
 import json
 
+SCHEMAS = ['dotpkg', 'installs']
+
 ROOT = Path(__file__).resolve().parent.parent
 
 @dataclass
@@ -200,7 +202,7 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
     pass
 
 def main():
-    for name in ['dotpkg', 'installs']:
+    for name in SCHEMAS:
         output = Output()
 
         with open(ROOT / 'schemas' / f'{name}.schema.json', 'r') as f:
