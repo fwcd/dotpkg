@@ -79,6 +79,7 @@
     "touchFiles": {
       "type": "array",
       "description": "A list of paths to create in the target directory, if not already existing. Useful e.g. for private/ignored configs that are included by a packaged config.",
+      "default": [],
       "items": {
         "type": "string"
       }

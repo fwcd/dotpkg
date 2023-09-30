@@ -97,7 +97,7 @@ class DotpkgManifest:
     target_dir: list[str] = field(default_factory=lambda: ['${home}'])
     '''The target directory that the files from the dotpkg should be linked into. The first existing path from this list will be chosen (this is useful for cross-platform dotpkgs, since some programs place their configs in an OS-specific location).'''
     
-    touch_files: Optional[list[str]] = field(default_factory=lambda: None)
+    touch_files: list[str] = field(default_factory=lambda: [])
     '''A list of paths to create in the target directory, if not already existing. Useful e.g. for private/ignored configs that are included by a packaged config.'''
     
     @staticmethod
@@ -112,7 +112,7 @@ class DotpkgManifest:
             renames=d.get('renames') or {},
             target_dir=d.get('targetDir') or ['${home}'],
             create_target_dir_if_needed=d.get('createTargetDirIfNeeded') or False,
-            touch_files=d.get('touchFiles') or None,
+            touch_files=d.get('touchFiles') or [],
             skip_during_batch_install=d.get('skipDuringBatchInstall') or False,
             copy=d.get('copy') or False,
             is_scripts_only=d.get('isScriptsOnly') or False,
