@@ -17,16 +17,21 @@ class InstallsEntry:
     paths: list[str] = field(default_factory=lambda: [])
     '''The paths to the installed links.'''
     
+    src_paths: list[str] = field(default_factory=lambda: [])
+    '''The paths of the linked-to files.'''
+    
     @staticmethod
     def from_dict(d: dict[str, Any]) -> InstallsEntry:
         return InstallsEntry(
             target_dir=d['targetDir'],
+            src_paths=d.get('srcPaths') or [],
             paths=d.get('paths') or [],
         )
     
     def to_dict(self) -> dict[str, Any]:
         return {
             'targetDir': self.target_dir,
+            'srcPaths': self.src_paths,
             'paths': self.paths,
         }
     

@@ -21,6 +21,14 @@
             "type": "string",
             "description": "The installation path of the dotpkg."
           },
+          "srcPaths": {
+            "type": "array",
+            "description": "The paths of the linked-to files.",
+            "default": [],
+            "items": {
+              "type": "string"
+            }
+          },
           "paths": {
             "type": "array",
             "description": "The paths to the installed links.",
