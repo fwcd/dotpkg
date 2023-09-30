@@ -35,7 +35,7 @@ class Installs:
 class InstallsV2Manifest:
     '''A manifest keeping track of the installed locations of dotpkgs'''
     
-    installs: dict[str, Installs]
+    installs: dict[str, Installs] = field(default_factory=lambda: {})
     '''The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).'''
     
     version: Literal[2] = field(default_factory=lambda: 2)
@@ -45,7 +45,7 @@ class InstallsV2Manifest:
     def from_dict(d: dict[str, Any]) -> InstallsV2Manifest:
         return InstallsV2Manifest(
             version=d.get('version') or 2,
-            installs=d['installs'],
+            installs=d.get('installs') or {},
         )
     
     def to_dict(self) -> dict[str, Any]:
