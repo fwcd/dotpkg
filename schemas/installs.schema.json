@@ -11,7 +11,7 @@
     "version": {
       "type": "integer",
       "description": "The version of the install manifest.",
-      "default": 0
+      "default": 2
     }
   },
   "anyOf": [
