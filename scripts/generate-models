@@ -10,23 +10,28 @@ import json
 ROOT = Path(__file__).resolve().parent.parent
 
 @dataclass
+class Type:
+    raw: str
+    is_dataclass: bool = False
+
+@dataclass
 class Field:
     name: str
     original_name: str
-    type: str
+    type: Type
     description: Optional[str] = None
 
 @dataclass
 class Parameter:
     name: str
-    type: Optional[str] = None
+    type: Optional[Type] = None
 
 @dataclass
 class Function:
     decorators: list[str]
     name: str
     parameters: list[Parameter]
-    return_type: str
+    return_type: Type
     body: list[str]
 
 @dataclass
@@ -50,19 +55,22 @@ def to_snake_case(components: list[str]) -> str:
 def indent(lines: list[str]) -> list[str]:
     return [f'    {l}' for l in lines]
 
+def format_type(type: Type) -> str:
+    return type.raw
+
 def format_field(field: Field) -> list[str]:
     return [
-        f'{field.name}: {field.type}',
+        f'{field.name}: {format_type(field.type)}',
         *([f"'''{field.description}'''"] if field.description else []),
     ]
 
 def format_parameter(parameter: Parameter) -> str:
-    return f'{parameter.name}: {parameter.type}' if parameter.type else parameter.name
+    return f'{parameter.name}: {format_type(parameter.type)}' if parameter.type else parameter.name
 
 def format_function(function: Function) -> list[str]:
     return [
         *function.decorators,
-        f"def {function.name}({', '.join(map(format_parameter, function.parameters))}) -> {function.return_type}:",
+        f"def {function.name}({', '.join(map(format_parameter, function.parameters))}) -> {format_type(function.return_type)}:",
         *indent(function.body),
     ]
 
@@ -77,16 +85,16 @@ def format_dataclass(dataclass: Dataclass) -> list[str]:
         ]),
     ]
 
-def translate_schema(name: str, value: dict[str, Any], output: Output) -> str:
+def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
     match value['type']:
         case 'string':
-            return 'str'
+            return Type('str')
         case 'boolean':
-            return 'bool'
+            return Type('bool')
         case 'integer':
-            return 'int'
+            return Type('int')
         case 'number':
-            return 'float'
+            return Type('float')
         case 'array':
             return translate_schema(
                 name=name,
@@ -113,17 +121,17 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> str:
                     description=value.get('description'),
                     fields=fields,
                 ))
-                return name
+                return Type(raw=name, is_dataclass=True)
             elif 'additionalProperties' in value:
                 t = translate_schema(
                     name=name,
                     value=value['additionalProperties'],
                     output=output
                 )
-                return f'dict[str, {t}]'
+                return Type(f'dict[str, {format_type(t)}]')
             else:
                 output.imports.add('from typing import Any')
-                return 'dict[str, Any]'
+                return Type('dict[str, Any]')
         case t:
             raise ValueError(f'Unknown type {t}')
 
@@ -132,8 +140,8 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     return Function(
         decorators=['@staticmethod'],
         name='from_dict',
-        parameters=[Parameter(name='d', type='dict[str, Any]')],
-        return_type=dataclass.name,
+        parameters=[Parameter(name='d', type=Type('dict[str, Any]'))],
+        return_type=Type(dataclass.name, is_dataclass=True),
         body=[
             f'return {dataclass.name}(',
             *indent([f"{f.name}=d['{f.original_name}']," for f in dataclass.fields]),
@@ -147,7 +155,7 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
         decorators=[],
         name='to_dict',
         parameters=[Parameter(name='self')],
-        return_type='dict[str, Any]',
+        return_type=Type('dict[str, Any]'),
         body=[
             'return {',
             *indent([f"'{f.original_name}': self.{f.name}," for f in dataclass.fields]),
