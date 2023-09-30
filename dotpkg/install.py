@@ -1,18 +1,23 @@
 from itertools import zip_longest
 from pathlib import Path
-from typing import Callable, Iterable, Any, cast
+from typing import Callable, Iterable, Optional
 
 from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_VERSION
-from dotpkg.legacy_manifest import manifest_name, find_target_dir, resolve_ignores, resolve_manifest_str
+from dotpkg.manifest.dotpkg import DotpkgManifest
+from dotpkg.manifest.installs import InstallsManifest
+from dotpkg.manifest.installs_v2 import InstallsEntry, InstallsV2Manifest
 from dotpkg.options import Options
 from dotpkg.utils.file import path_digest, copy, move, link, touch, remove
-from dotpkg.utils.log import note, warn
+from dotpkg.utils.log import error, note, warn
 from dotpkg.utils.prompt import prompt, confirm
 
 import json
 import subprocess
+import socket
 
 # Installation/uninstallation
+
+# TODO: Move these helpers to a separate module again
 
 def find_link_candidates(src_dir: Path, target_dir: Path, renamer: Callable[[str], str] = lambda name: name) -> Iterable[tuple[Path, Path]]:
     for src_path in src_dir.iterdir():
@@ -26,6 +31,52 @@ def find_link_candidates(src_dir: Path, target_dir: Path, renamer: Callable[[str
             else:
                 yield src_path, target_path
 
+def manifest_vars(opts: Options):
+    return {
+        '${home}': str(opts.home.resolve()),
+        '${hostname}': socket.gethostname()
+    }
+
+def resolve_manifest_str(s: str, opts: Options) -> str:
+    resolved = s
+    for key, value in manifest_vars(opts).items():
+        resolved = resolved.replace(key, value)
+    return resolved
+
+def resolve_ignores(src_dir: Path, manifest: DotpkgManifest, opts: Options) -> set[Path]:
+    host_specific_patterns = manifest.host_specific_files
+    host_specific_includes = {
+        src_dir / resolve_manifest_str(p, opts)
+        for p in host_specific_patterns
+    }
+    host_specific_ignores = {
+        i
+        for p in host_specific_patterns
+        for i in src_dir.glob(p.replace('${hostname}', '*'))
+        if i not in host_specific_includes and not i.name.endswith('.private')
+    }
+    custom_ignores = {
+        i
+        for p in manifest.ignored_files
+        for i in src_dir.glob(p)
+    }
+    ignores = host_specific_ignores.union(custom_ignores)
+    return ignores
+
+def find_target_dir(manifest: DotpkgManifest, opts: Options) -> Path:
+    raw_dirs = manifest.target_dir
+    dir_paths = [Path(resolve_manifest_str(raw_dir, opts)) for raw_dir in raw_dirs]
+
+    for path in dir_paths:
+        if path.is_dir() and path.exists():
+            return path
+
+    if manifest.create_target_dir_if_needed and dir_paths:
+        # Defer creation until after potentially uninstalling an old version
+        return dir_paths[0]
+
+    return error(f'No suitable targetDir found in {raw_dirs}!')
+
 def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Options):
     if should_copy:
         copy(src_path, target_path, opts)
@@ -35,25 +86,22 @@ def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Opt
 def install_manifest_path(opts: Options) -> Path:
     return opts.state_dir / INSTALL_MANIFEST_NAME
 
-def read_install_manifest(opts: Options) -> dict[str, Any]:
+def read_install_manifest(opts: Options) -> InstallsV2Manifest:
     try:
         path = install_manifest_path(opts)
         with open(path, 'r') as f:
-            manifest = json.load(f)
-            version = manifest.get('version', 0)
+            raw_manifest = json.load(f)
+            version = raw_manifest.get('version', 0)
             if version < INSTALL_MANIFEST_VERSION:
                 if not confirm(f'An older install manifest with version {version} (current is {INSTALL_MANIFEST_VERSION}) exists at {install_manifest_path(opts)}, which may be incompatible with the current version. Should this be used anyway? If no, the old one will be ignored/overwritten.', opts):
-                    manifest['version'] = INSTALL_MANIFEST_VERSION
+                    raw_manifest['version'] = INSTALL_MANIFEST_VERSION
                 else:
-                    manifest = None
+                    raw_manifest = None
     except FileNotFoundError:
-        manifest = None
-    return manifest or {
-        '$schema': 'https://raw.githubusercontent.com/fwcd/dotpkg/main/schemas/installs.schema.json',
-        'version': INSTALL_MANIFEST_VERSION,
-    }
+        raw_manifest = None
+    return InstallsV2Manifest.from_dict(raw_manifest) if raw_manifest else InstallsV2Manifest()
 
-def write_install_manifest(manifest: dict[str, Any], opts: Options):
+def write_install_manifest(manifest: InstallsManifest, opts: Options):
     path = install_manifest_path(opts)
     if path.exists():
         note(f'Updating {path}')
@@ -62,10 +110,10 @@ def write_install_manifest(manifest: dict[str, Any], opts: Options):
     if not opts.dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w') as f:
-            json.dump(manifest, f, indent=2)
+            json.dump(manifest.to_dict(), f, indent=2)
 
-def run_script(name: str, src_dir: Path, manifest: dict[str, Any], opts: Options):
-    script = manifest.get('scripts', {}).get(name, None)
+def run_script(name: str, src_dir: Path, manifest: DotpkgManifest, opts: Options):
+    script = getattr(manifest.scripts, name)
 
     if script:
         description = f"'{name}' ('{script}')"
@@ -76,24 +124,24 @@ def run_script(name: str, src_dir: Path, manifest: dict[str, Any], opts: Options
             if not opts.dry_run:
                 subprocess.run(script, shell=True, cwd=src_dir, check=True)
 
-def display_caveats(src_dir: Path, manifest: dict[str, Any], opts: Options):
-    requires = manifest.get('requires', None)
+def display_caveats(manifest: DotpkgManifest):
+    requires = manifest.requires
     if requires == 'logout':
-        warn(f'{manifest_name(src_dir, manifest)} requires logging out and back in to apply!')
+        warn(f'{manifest.name} requires logging out and back in to apply!')
     elif requires == 'reboot':
-        warn(f'{manifest_name(src_dir, manifest)} requires rebooting the computer to apply!')
+        warn(f'{manifest.name} requires rebooting the computer to apply!')
 
-def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
+def install(src_dir: Path, manifest: DotpkgManifest, opts: Options):
     target_dir = find_target_dir(manifest, opts)
 
     install_manifest = read_install_manifest(opts)
-    installs = install_manifest.get('installs', {})
+    installs = {**install_manifest.installs}
     install_key = str(src_dir)
 
     if install_key in installs:
         existing_install = installs[install_key]
-        existing_paths = [Path(path) for path in existing_install.get('paths', [])]
-        existing_target_dir = Path(existing_install.get('targetDir', str(target_dir)))
+        existing_paths = [Path(path) for path in existing_install.paths]
+        existing_target_dir = Path(existing_install.target_dir or str(target_dir))
         if confirm(f'The dotpkg {install_key} is already installed to {existing_target_dir} and currently targets {target_dir}. Should it be uninstalled first?', opts):
             uninstall(src_dir, manifest, opts)
         elif target_dir.resolve() != existing_target_dir.resolve():
@@ -104,21 +152,21 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
     run_script('preinstall', src_dir, manifest, opts)
 
-    scripts_only = manifest.get('isScriptsOnly', False)
+    scripts_only = manifest.is_scripts_only
     src_paths: list[Path] = []
     installed_paths: list[Path] = []
 
     if not scripts_only:
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        touch_files: list[str] = manifest.get('touchFiles', [])
+        touch_files: list[str] = manifest.touch_files
         for rel_path in touch_files:
             touch_path = target_dir / rel_path
             touch(touch_path, opts)
 
         ignores = resolve_ignores(src_dir, manifest, opts)
-        renames = manifest.get('renames', {})
-        should_copy = manifest.get('copy', False)
+        renames = manifest.renames
+        should_copy = manifest.copy
 
         def renamer(name: str) -> str:
             for pat, s in renames.items():
@@ -182,33 +230,33 @@ def install(src_dir: Path, manifest: dict[str, Any], opts: Options):
     run_script('postinstall', src_dir, manifest, opts)
 
     if opts.update_install_manifest:
-        installs[install_key] = {
-            'targetDir': str(target_dir),
-            'srcPaths': [str(path) for path in src_paths],
-            'paths': [str(path) for path in installed_paths],
-        }
-        install_manifest['installs'] = installs
+        installs[install_key] = InstallsEntry(
+            target_dir=str(target_dir),
+            src_paths=[str(path) for path in src_paths],
+            paths=[str(path) for path in installed_paths],
+        )
+        install_manifest.installs = installs
         write_install_manifest(install_manifest, opts)
     
-    display_caveats(src_dir, manifest, opts)
+    display_caveats(manifest)
 
-def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
+def uninstall(src_dir: Path, manifest: DotpkgManifest, opts: Options):
     install_manifest = read_install_manifest(opts)
-    installs = install_manifest.get('installs', {})
+    installs = {**install_manifest.installs}
     install_key = str(src_dir)
-    install: dict[str, Any] = installs.get(install_key, {})
+    install: Optional[InstallsEntry] = installs.get(install_key)
 
     run_script('preuninstall', src_dir, manifest, opts)
     run_script('uninstall', src_dir, manifest, opts)
 
-    scripts_only = manifest.get('isScriptsOnly', False)
+    scripts_only = manifest.is_scripts_only
 
     if not scripts_only:
-        target_dir = Path(install['targetDir']) if 'targetDir' in install else find_target_dir(manifest, opts)
-        should_copy = manifest.get('copy', False)
+        target_dir = Path(install.target_dir) if install else find_target_dir(manifest, opts)
+        should_copy = manifest.copy
 
-        if 'paths' in install:
-            paths = zip_longest(map(Path, cast(list[str], install.get('srcPaths', []))), map(Path, install['paths']), fillvalue=None)
+        if install:
+            paths = zip_longest(map(Path, install.src_paths), map(Path, install.paths), fillvalue=None)
         else:
             paths = find_link_candidates(src_dir, target_dir)
 
@@ -255,7 +303,7 @@ def uninstall(src_dir: Path, manifest: dict[str, Any], opts: Options):
 
     if opts.update_install_manifest and install_key in installs:
         del installs[install_key]
-        install_manifest['installs'] = installs
+        install_manifest.installs = installs
         write_install_manifest(install_manifest, opts)
 
-    display_caveats(src_dir, manifest, opts)
+    display_caveats(manifest)
