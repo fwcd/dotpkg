@@ -187,7 +187,7 @@ def main():
         with open(ROOT / 'schemas' / f'{name}.schema.json', 'r') as f:
             raw = json.load(f)
             translate_schema(
-                name=name.capitalize(),
+                name=f'{name.capitalize()}Manifest',
                 value=raw,
                 output=output
             )
@@ -200,7 +200,7 @@ def main():
             dataclass.methods.append(generate_from_dict_method(dataclass, output))
             dataclass.methods.append(generate_to_dict_method(dataclass, output))
         
-        with open(ROOT / 'dotpkg' / 'model' / f'{name}.py', 'w') as f:
+        with open(ROOT / 'dotpkg' / 'manifest' / f'{name}.py', 'w') as f:
             raw = '\n\n'.join([
                 '\n'.join(sorted(output.imports)),
                 *('\n'.join(format_dataclass(d)) for d in output.dataclasses),

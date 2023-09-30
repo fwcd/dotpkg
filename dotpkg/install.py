@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Any, cast
 
 from dotpkg.constants import IGNORED_NAMES, INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_VERSION
-from dotpkg.manifest import manifest_name, find_target_dir, resolve_ignores, resolve_manifest_str
+from dotpkg.legacy_manifest import manifest_name, find_target_dir, resolve_ignores, resolve_manifest_str
 from dotpkg.options import Options
 from dotpkg.utils.file import path_digest, copy, move, link, touch, remove
 from dotpkg.utils.log import note, warn

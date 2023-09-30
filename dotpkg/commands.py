@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from dotpkg.install import install, uninstall
-from dotpkg.manifest import manifest_name, batch_skip_reason
+from dotpkg.legacy_manifest import manifest_name, batch_skip_reason
 from dotpkg.options import Options
 from dotpkg.resolve import cwd_dotpkgs, Dotpkg
 from dotpkg.utils.log import info, warn

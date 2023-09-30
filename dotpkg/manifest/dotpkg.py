@@ -47,7 +47,7 @@ class Scripts:
     
 
 @dataclass
-class Dotpkg:
+class DotpkgManifest:
     '''A configuration file for describing dotfile packages (dotpkg.json)'''
     
     name: str
@@ -96,8 +96,8 @@ class Dotpkg:
     '''Scripts for handling lifecycle events.'''
     
     @staticmethod
-    def from_dict(d: dict[str, Any]) -> Dotpkg:
-        return Dotpkg(
+    def from_dict(d: dict[str, Any]) -> DotpkgManifest:
+        return DotpkgManifest(
             name=d['name'],
             description=d['description'],
             requires_on_path=d['requiresOnPath'],
