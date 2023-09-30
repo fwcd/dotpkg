@@ -3,6 +3,7 @@ from typing import Callable, Iterable
 
 from dotpkg.constants import IGNORED_NAMES
 from dotpkg.manifest.dotpkg import DotpkgManifest
+from dotpkg.model import Dotpkg
 from dotpkg.options import Options
 from dotpkg.utils.log import error
 
@@ -34,22 +35,22 @@ def resolve_manifest_str(s: str, opts: Options) -> str:
         resolved = resolved.replace(key, value)
     return resolved
 
-def resolve_ignores(src_dir: Path, manifest: DotpkgManifest, opts: Options) -> set[Path]:
-    host_specific_patterns = manifest.host_specific_files
+def resolve_ignores(pkg: Dotpkg, opts: Options) -> set[Path]:
+    host_specific_patterns = pkg.manifest.host_specific_files
     host_specific_includes = {
-        src_dir / resolve_manifest_str(p, opts)
+        pkg.path / resolve_manifest_str(p, opts)
         for p in host_specific_patterns
     }
     host_specific_ignores = {
         i
         for p in host_specific_patterns
-        for i in src_dir.glob(p.replace('${hostname}', '*'))
+        for i in pkg.path.glob(p.replace('${hostname}', '*'))
         if i not in host_specific_includes and not i.name.endswith('.private')
     }
     custom_ignores = {
         i
-        for p in manifest.ignored_files
-        for i in src_dir.glob(p)
+        for p in pkg.manifest.ignored_files
+        for i in pkg.path.glob(p)
     }
     ignores = host_specific_ignores.union(custom_ignores)
     return ignores

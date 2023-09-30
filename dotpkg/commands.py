@@ -76,7 +76,7 @@ def install_cmd(raw_dotpkg_paths: list[str], opts: Options):
             continue
 
         info(f'Installing {name} ({pkg.manifest.description})...')
-        install(pkg.path, pkg.manifest, opts)
+        install(pkg, opts)
 
 def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
     refs = resolve_refs(raw_dotpkg_paths, opts)
@@ -94,7 +94,7 @@ def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
             continue
 
         info(f"Uninstalling {name} ({pkg.manifest.description})...")
-        uninstall(pkg.path, pkg.manifest, opts)
+        uninstall(pkg, opts)
 
 def sync_cmd(dotpkgs: list[str], opts: Options):
     uninstall_cmd(dotpkgs, opts)

@@ -6,6 +6,7 @@ from dotpkg.constants import INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_VERSION
 from dotpkg.manifest.dotpkg import DotpkgManifest
 from dotpkg.manifest.installs import InstallsManifest
 from dotpkg.manifest.installs_v2 import InstallsEntry, InstallsV2Manifest
+from dotpkg.model import Dotpkg
 from dotpkg.options import Options
 from dotpkg.resolve import find_link_candidates, find_target_dir, resolve_ignores, resolve_manifest_str
 from dotpkg.utils.file import path_digest, copy, move, link, touch, remove
@@ -58,8 +59,8 @@ def write_install_manifest(manifest: InstallsManifest, opts: Options):
         with open(path, 'w') as f:
             json.dump(manifest.to_dict(), f, indent=2)
 
-def run_script(name: str, src_dir: Path, manifest: DotpkgManifest, opts: Options):
-    script = getattr(manifest.scripts, name)
+def run_script(name: str, pkg: Dotpkg, opts: Options):
+    script = getattr(pkg.manifest.scripts, name)
 
     if script:
         description = f"'{name}' ('{script}')"
@@ -68,7 +69,7 @@ def run_script(name: str, src_dir: Path, manifest: DotpkgManifest, opts: Options
         else:
             print(f"Running script {description}...")
             if not opts.dry_run:
-                subprocess.run(script, shell=True, cwd=src_dir, check=True)
+                subprocess.run(script, shell=True, cwd=pkg.path, check=True)
 
 def display_caveats(manifest: DotpkgManifest):
     requires = manifest.requires
@@ -77,49 +78,49 @@ def display_caveats(manifest: DotpkgManifest):
     elif requires == 'reboot':
         warn(f'{manifest.name} requires rebooting the computer to apply!')
 
-def install(src_dir: Path, manifest: DotpkgManifest, opts: Options):
-    target_dir = find_target_dir(manifest, opts)
+def install(pkg: Dotpkg, opts: Options):
+    target_dir = find_target_dir(pkg.manifest, opts)
 
     install_manifest = read_install_manifest(opts)
     installs = {**install_manifest.installs}
-    install_key = str(src_dir)
+    install_key = str(pkg.path)
 
     if install_key in installs:
         existing_install = installs[install_key]
         existing_paths = [Path(path) for path in existing_install.paths]
         existing_target_dir = Path(existing_install.target_dir or str(target_dir))
-        if confirm(f'The dotpkg {install_key} is already installed to {existing_target_dir} and currently targets {target_dir}. Should it be uninstalled first?', opts):
-            uninstall(src_dir, manifest, opts)
+        if confirm(f'The dotpkg {pkg.name} is already installed to {existing_target_dir} and currently targets {target_dir}. Should it be uninstalled first?', opts):
+            uninstall(pkg, opts)
         elif target_dir.resolve() != existing_target_dir.resolve():
             warn('\n'.join([
                 f'This will leave the installed files at the old target dir {existing_target_dir} orphaned, since the install for {install_key} in {install_manifest_path(opts)} will be repointed to {target_dir}. These files are affected:',
                 *[f'  {path}' for path in existing_paths],
             ]))
 
-    run_script('preinstall', src_dir, manifest, opts)
+    run_script('preinstall', pkg, opts)
 
-    scripts_only = manifest.is_scripts_only
+    scripts_only = pkg.manifest.is_scripts_only
     src_paths: list[Path] = []
     installed_paths: list[Path] = []
 
     if not scripts_only:
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        touch_files: list[str] = manifest.touch_files
+        touch_files: list[str] = pkg.manifest.touch_files
         for rel_path in touch_files:
             touch_path = target_dir / rel_path
             touch(touch_path, opts)
 
-        ignores = resolve_ignores(src_dir, manifest, opts)
-        renames = manifest.renames
-        should_copy = manifest.copy
+        ignores = resolve_ignores(pkg, opts)
+        renames = pkg.manifest.renames
+        should_copy = pkg.manifest.copy
 
         def renamer(name: str) -> str:
             for pat, s in renames.items():
                 name = name.replace(resolve_manifest_str(pat, opts), resolve_manifest_str(s, opts))
             return name
 
-        for src_path, target_path in find_link_candidates(src_dir, target_dir, renamer):
+        for src_path, target_path in find_link_candidates(pkg.path, target_dir, renamer):
             if src_path in ignores:
                 note(f'Ignoring {src_path}')
                 continue
@@ -172,8 +173,8 @@ def install(src_dir: Path, manifest: DotpkgManifest, opts: Options):
                 src_paths.append(src_path)
                 installed_paths.append(target_path)
     
-    run_script('install', src_dir, manifest, opts)
-    run_script('postinstall', src_dir, manifest, opts)
+    run_script('install', pkg, opts)
+    run_script('postinstall', pkg, opts)
 
     if opts.update_install_manifest:
         installs[install_key] = InstallsEntry(
@@ -184,27 +185,27 @@ def install(src_dir: Path, manifest: DotpkgManifest, opts: Options):
         install_manifest.installs = installs
         write_install_manifest(install_manifest, opts)
     
-    display_caveats(manifest)
+    display_caveats(pkg.manifest)
 
-def uninstall(src_dir: Path, manifest: DotpkgManifest, opts: Options):
+def uninstall(pkg: Dotpkg, opts: Options):
     install_manifest = read_install_manifest(opts)
     installs = {**install_manifest.installs}
-    install_key = str(src_dir)
+    install_key = str(pkg.path)
     install: Optional[InstallsEntry] = installs.get(install_key)
 
-    run_script('preuninstall', src_dir, manifest, opts)
-    run_script('uninstall', src_dir, manifest, opts)
+    run_script('preuninstall', pkg, opts)
+    run_script('uninstall', pkg, opts)
 
-    scripts_only = manifest.is_scripts_only
+    scripts_only = pkg.manifest.is_scripts_only
 
     if not scripts_only:
-        target_dir = Path(install.target_dir) if install else find_target_dir(manifest, opts)
-        should_copy = manifest.copy
+        target_dir = Path(install.target_dir) if install else find_target_dir(pkg.manifest, opts)
+        should_copy = pkg.manifest.copy
 
         if install:
             paths = zip_longest(map(Path, install.src_paths), map(Path, install.paths), fillvalue=None)
         else:
-            paths = find_link_candidates(src_dir, target_dir)
+            paths = find_link_candidates(pkg.path, target_dir)
 
         for src_path, target_path in paths:
             if not target_path:
@@ -245,11 +246,11 @@ def uninstall(src_dir: Path, manifest: DotpkgManifest, opts: Options):
 
             remove(target_path, opts)
     
-    run_script('postuninstall', src_dir, manifest, opts)
+    run_script('postuninstall', pkg, opts)
 
     if opts.update_install_manifest and install_key in installs:
         del installs[install_key]
         install_manifest.installs = installs
         write_install_manifest(install_manifest, opts)
 
-    display_caveats(manifest)
+    display_caveats(pkg.manifest)

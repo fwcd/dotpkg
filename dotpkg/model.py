@@ -12,6 +12,10 @@ class Dotpkg:
     path: Path
     manifest: DotpkgManifest
 
+    @property
+    def name(self) -> str:
+        return self.manifest.name
+
 @dataclass
 class DotpkgRef:
     path: Path
