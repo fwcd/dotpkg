@@ -89,7 +89,7 @@ class DotpkgManifest:
     requires_on_path: list[str] = field(default_factory=lambda: [])
     '''Binaries requires on the PATH for the package to be automatically installed when invoking 'dotpkg install' (usually the program configured, e.g. 'code'). Only relevant if 'dotpkg install' is invoked without arguments, otherwise the package will always be installed.'''
     
-    scripts: Optional[Scripts] = field(default_factory=lambda: None)
+    scripts: Scripts = field(default_factory=lambda: Scripts())
     '''Scripts for handling lifecycle events.'''
     
     skip_during_batch_install: bool = field(default_factory=lambda: False)
@@ -118,7 +118,7 @@ class DotpkgManifest:
             copy=d.get('copy') or False,
             is_scripts_only=d.get('isScriptsOnly') or False,
             requires=d.get('requires') or None,
-            scripts=d.get('scripts') or None,
+            scripts=Scripts.from_dict(d.get('scripts') or {}),
         )
     
     def to_dict(self) -> dict[str, Any]:
@@ -137,7 +137,7 @@ class DotpkgManifest:
             'copy': self.copy,
             'isScriptsOnly': self.is_scripts_only,
             'requires': self.requires,
-            'scripts': self.scripts,
+            'scripts': self.scripts.to_dict(),
         }
     
 

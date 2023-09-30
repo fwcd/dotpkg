@@ -107,6 +107,7 @@
     "scripts": {
       "type": "object",
       "description": "Scripts for handling lifecycle events.",
+      "default": {},
       "properties": {
         "preinstall": {
           "type": "string",

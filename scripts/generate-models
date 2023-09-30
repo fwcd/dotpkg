@@ -26,6 +26,7 @@ class Field:
     original_name: str
     type: Type
     default: Optional[Any] = None
+    original_default: Optional[Any] = None
     description: Optional[str] = None
 
 @dataclass
@@ -60,8 +61,8 @@ class Output:
     dataclasses: list[Dataclass] = field(default_factory=list)
 
 @dataclass
-class NoneValue:
-    pass
+class Quote:
+    syntax: str
 
 def lower_all(components: list[str]) -> list[str]:
     return [c.lower() for c in components]
@@ -96,8 +97,8 @@ def format_value(value: Any) -> str:
         return f"'{value}'"
     elif isinstance(value, int) or isinstance(value, float) or isinstance(value, bool):
         return str(value)
-    elif isinstance(value, NoneValue):
-        return 'None'
+    elif isinstance(value, Quote):
+        return value.syntax
     elif isinstance(value, list):
         value = cast(list[Any], value)
         return f"[{', '.join(format_value(v) for v in value)}]"
@@ -205,16 +206,23 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                         value=prop,
                         output=output,
                     )
-                    default = prop.get('const') or prop.get('default')
-                    if key not in required and default is None:
+                    original_default = prop.get('const') or prop.get('default')
+                    if key not in required and original_default is None:
                         output.imports.add('from typing import Optional')
                         field_type = Type('Optional', args=[format_type(field_type)])
-                        default = NoneValue()
+                        original_default = Quote('None')
+                    default = original_default
+                    if field_type.is_dataclass:
+                        if default == {}:
+                            default = Quote(f'{field_type.raw}()')
+                        else:
+                            raise ValueError('Non-empty default value are not supported yet for dataclasses')
                     fields.append(Field(
                         name=to_snake_case(from_camel_case(key)),
                         original_name=key,
                         type=field_type,
                         default=default,
+                        original_default=original_default,
                         description=prop.get('description'),
                     ))
                 output.dataclasses.append(Dataclass(
@@ -243,8 +251,8 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     '''
 
     def field_from_dict(f: Field) -> str:
-        if f.default is not None:
-            s = f"d.get('{f.original_name}') or {format_value(f.default)}"
+        if f.original_default is not None:
+            s = f"d.get('{f.original_name}') or {format_value(f.original_default)}"
         else:
             s = f"d['{f.original_name}']"
         if f.type.is_dataclass:
