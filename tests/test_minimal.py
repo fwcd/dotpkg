@@ -9,4 +9,6 @@ class TestMinimal(unittest.TestCase):
         with HomeDirFixture() as home:
             with pkg.install_context(home.opts):
                 self.assertTrue((home.path / 'hello.txt').is_symlink())
-            self.assertTrue(home.is_empty)
+
+            self.assertFalse((home.path / 'hello.txt').exists())
+            self.assertEqual(home.read_install_manifest().installs, {})

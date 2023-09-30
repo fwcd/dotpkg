@@ -27,3 +27,6 @@ class TestTargetDir(unittest.TestCase):
                 self.assertFalse((home.path / '.config' / 'c').exists())
                 self.assertTrue(path.is_dir())
                 self.assertTrue((path / 'someconfig.json').is_symlink())
+
+            self.assertEqual(list(path.iterdir()), [])
+            self.assertEqual(home.read_install_manifest().installs, {})

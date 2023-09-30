@@ -3,7 +3,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from dotpkg.install import install, uninstall
+from dotpkg.install import install, read_install_manifest, uninstall
+from dotpkg.manifest.installs_v2 import InstallsV2Manifest
 from dotpkg.model import Dotpkg, DotpkgRef
 from dotpkg.options import Options
 
@@ -48,7 +49,7 @@ class HomeDirFixture:
     
     @property
     def path(self) -> Path:
-        return Path(self.dir.name)
+        return Path(self.dir.name).resolve()
     
     @property
     def is_empty(self) -> bool:
@@ -60,3 +61,6 @@ class HomeDirFixture:
             cwd=TEST_PKGS,
             home=self.path,
         )
+
+    def read_install_manifest(self) -> InstallsV2Manifest:
+        return read_install_manifest(self.opts)
