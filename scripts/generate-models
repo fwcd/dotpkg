@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Generates Python dataclasses from the JSON schemas.
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
