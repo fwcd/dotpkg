@@ -30,8 +30,8 @@ class DotpkgFixture:
 
     @contextmanager
     def install_context(self, opts: Options):
+        self.install(opts)
         try:
-            self.install(opts)
             yield None
         finally:
             self.uninstall(opts)
