@@ -1,23 +1,6 @@
-from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any
+from .installs_v1 import InstallsV1Manifest
+from .installs_v2 import InstallsV2Manifest
+from typing import Union
 
-@dataclass
-class InstallsManifest:
-    '''A manifest keeping track of the installed locations of dotpkgs'''
-    
-    version: int
-    '''The version of the install manifest.'''
-    
-    @staticmethod
-    def from_dict(d: dict[str, Any]) -> InstallsManifest:
-        return InstallsManifest(
-            version=d['version'],
-        )
-    
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            'version': self.version,
-        }
-    
+InstallsManifest = Union[InstallsV1Manifest, InstallsV2Manifest]
 

@@ -40,6 +40,11 @@ class Function:
     body: list[str]
 
 @dataclass
+class Typealias:
+    name: str
+    type: Type
+
+@dataclass
 class Dataclass:
     name: str
     description: Optional[str] = None
@@ -49,10 +54,14 @@ class Dataclass:
 @dataclass
 class Output:
     imports: set[str] = field(default_factory=set)
-    dataclasses: list[Dataclass] = field(default_factory=lambda: [])
+    typealiases: list[Typealias] = field(default_factory=list)
+    dataclasses: list[Dataclass] = field(default_factory=list)
 
 def lower_all(components: list[str]) -> list[str]:
     return [c.lower() for c in components]
+
+def from_schema_filename(raw: str) -> list[str]:
+    return raw.split('.')[:-2]
 
 def from_camel_case(raw: str) -> list[str]:
     return lower_all(re.split(r'(?<=[a-z])(?=[A-Z])', raw))
@@ -62,6 +71,9 @@ def to_snake_case(components: list[str]) -> str:
 
 def to_pascal_case(components: list[str]) -> str:
     return ''.join(c.capitalize() for c in components)
+
+def to_manifest_name(components: list[str]) -> str:
+    return f'{to_pascal_case(components)}Manifest'
 
 def indent(lines: list[str]) -> list[str]:
     return [f'    {l}' for l in lines]
@@ -88,6 +100,9 @@ def format_function(function: Function) -> list[str]:
         *indent(function.body),
     ]
 
+def format_typealias(typealias: Typealias) -> list[str]:
+    return [f'{typealias.name} = {format_type(typealias.type)}']
+
 def format_dataclass(dataclass: Dataclass) -> list[str]:
     return [
         '@dataclass',
@@ -99,11 +114,34 @@ def format_dataclass(dataclass: Dataclass) -> list[str]:
         ]),
     ]
 
+def format_output(output: Output) -> str:
+    return '\n\n'.join([
+        '\n'.join(sorted(output.imports)),
+        *('\n'.join(format_typealias(t)) for t in output.typealiases),
+        *('\n'.join(format_dataclass(d)) for d in output.dataclasses),
+        '',
+    ])
+
 def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
     '''
     Translates the given JSON schema, adding dataclasses for nested types and
     imports to the output as required.
     '''
+
+    if '$ref' in value:
+        ref = from_schema_filename(value['$ref'])
+        output.imports.add(f'from .{to_snake_case(ref)} import {to_manifest_name(ref)}')
+        return Type(to_manifest_name(ref), is_dataclass=True)
+    elif 'anyOf' in value:
+        output.imports.add('from typing import Union')
+        return Type('Union', args=[
+            format_type(translate_schema(
+                name=name,
+                value=variant,
+                output=output,
+            ))
+            for variant in value['anyOf']
+        ])
 
     match value['type']:
         case 'string':
@@ -210,15 +248,18 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
 def main():
     for path in SCHEMAS_ROOT.iterdir():
         output = Output()
-        name = path.name.split('.')[:-2]
+        name = from_schema_filename(path.name)
 
         with open(path, 'r') as f:
             raw = json.load(f)
-            translate_schema(
-                name=f'{to_pascal_case(name)}Manifest',
+            top_level_type = translate_schema(
+                name=to_manifest_name(name),
                 value=raw,
                 output=output
             )
+
+            if not top_level_type.is_dataclass:
+                output.typealiases.append(Typealias(name=to_manifest_name(name), type=top_level_type))
         
         if output.dataclasses:
             output.imports.add('from __future__ import annotations')
@@ -229,11 +270,7 @@ def main():
             dataclass.methods.append(generate_to_dict_method(dataclass, output))
         
         with open(GENERATION_ROOT / f'{to_snake_case(name)}.py', 'w') as f:
-            raw = '\n\n'.join([
-                '\n'.join(sorted(output.imports)),
-                *('\n'.join(format_dataclass(d)) for d in output.dataclasses),
-                '',
-            ])
+            raw = format_output(output)
             f.write(raw)
             
 
