@@ -3,8 +3,9 @@ from typing import Iterable, Optional
 
 from dotpkg.install import install, uninstall
 from dotpkg.manifest.dotpkg import DotpkgManifest
+from dotpkg.model import DotpkgRef, DotpkgRefs
 from dotpkg.options import Options
-from dotpkg.resolve import DotpkgRefs, cwd_dotpkgs, DotpkgRef
+from dotpkg.resolve import cwd_dotpkgs
 from dotpkg.utils.log import info, warn
 from dotpkg.utils.prompt import confirm
 
