@@ -152,7 +152,10 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
     imports to the output as required.
     '''
 
-    if '$ref' in value:
+    if 'const' in value:
+        output.imports.add('from typing import Literal')
+        return Type('Literal', args=[format_value(value['const'])])
+    elif '$ref' in value:
         ref = from_schema_filename(value['$ref'])
         output.imports.add(f'from .{to_snake_case(ref)} import {to_manifest_name(ref)}')
         return Type(to_manifest_name(ref), is_dataclass=True)
@@ -194,7 +197,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                             value=prop,
                             output=output,
                         ),
-                        default=prop.get('default'),
+                        default=prop.get('const') or prop.get('default'),
                         description=prop.get('description'),
                     )
                     for key, prop in value['properties'].items()

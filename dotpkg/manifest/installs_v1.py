@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
+from typing import Literal
 
 @dataclass
 class Installs:
@@ -31,13 +33,13 @@ class InstallsV1Manifest:
     installs: dict[str, Installs]
     '''The installed dotpkgs, keyed by the relative paths to the source directories (containing the dotpkg.json manifests).'''
     
-    version: int
+    version: Literal[1] = field(default_factory=lambda: 1)
     '''The version of the install manifest.'''
     
     @staticmethod
     def from_dict(d: dict[str, Any]) -> InstallsV1Manifest:
         return InstallsV1Manifest(
-            version=d['version'],
+            version=d.get('version') or 1,
             installs=d['installs'],
         )
     
