@@ -12,16 +12,18 @@ ROOT = Path(__file__).resolve().parent.parent
 @dataclass
 class Field:
     name: str
+    original_name: str
     type: str
     description: Optional[str] = None
 
 @dataclass
 class Parameter:
     name: str
-    type: str
+    type: Optional[str] = None
 
 @dataclass
 class Function:
+    decorators: list[str]
     name: str
     parameters: list[Parameter]
     return_type: str
@@ -55,10 +57,11 @@ def format_field(field: Field) -> list[str]:
     ]
 
 def format_parameter(parameter: Parameter) -> str:
-    return f'{parameter.name}: {parameter.type}'
+    return f'{parameter.name}: {parameter.type}' if parameter.type else parameter.name
 
 def format_function(function: Function) -> list[str]:
     return [
+        *function.decorators,
         f"def {function.name}({', '.join(map(format_parameter, function.parameters))}) -> {function.return_type}:",
         *indent(function.body),
     ]
@@ -69,7 +72,8 @@ def format_dataclass(dataclass: Dataclass) -> list[str]:
         f'class {dataclass.name}:',
         *indent([
             *([f"'''{dataclass.description}'''", ''] if dataclass.description else []),
-            *[l for f in dataclass.fields for l in format_field(f)],
+            *[l for f in dataclass.fields for l in [*format_field(f), '']],
+            *[l for f in dataclass.methods for l in [*format_function(f), '']],
         ]),
     ]
 
@@ -94,6 +98,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> str:
                 fields = [
                     Field(
                         name=to_snake_case(from_camel_case(key)),
+                        original_name=key,
                         type=translate_schema(
                             name=key.capitalize(),
                             value=prop,
@@ -122,6 +127,35 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> str:
         case t:
             raise ValueError(f'Unknown type {t}')
 
+def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    output.imports.add('from typing import Any')
+    return Function(
+        decorators=['@staticmethod'],
+        name='from_dict',
+        parameters=[Parameter(name='d', type='dict[str, Any]')],
+        return_type=dataclass.name,
+        body=[
+            f'return {dataclass.name}(',
+            *indent([f"{f.name}=d['{f.original_name}']," for f in dataclass.fields]),
+            f')',
+        ],
+    )
+
+def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    output.imports.add('from typing import Any')
+    return Function(
+        decorators=[],
+        name='to_dict',
+        parameters=[Parameter(name='self')],
+        return_type='dict[str, Any]',
+        body=[
+            'return {',
+            *indent([f"'{f.original_name}': self.{f.name}," for f in dataclass.fields]),
+            '}',
+        ],
+    )
+    pass
+
 def main():
     for name in ['dotpkg', 'installs']:
         output = Output()
@@ -135,11 +169,16 @@ def main():
             )
         
         if output.dataclasses:
+            output.imports.add('from __future__ import annotations')
             output.imports.add('from dataclasses import dataclass')
+        
+        for dataclass in output.dataclasses:
+            dataclass.methods.append(generate_from_dict_method(dataclass, output))
+            dataclass.methods.append(generate_to_dict_method(dataclass, output))
         
         with open(ROOT / 'dotpkg' / 'model' / f'{name}.py', 'w') as f:
             raw = '\n\n'.join([
-                '\n'.join(output.imports),
+                '\n'.join(sorted(output.imports)),
                 *('\n'.join(format_dataclass(d)) for d in output.dataclasses),
                 '',
             ])
