@@ -1,3 +1,6 @@
+# NOTE: This file is auto-generated from schemas/installs.v1.schema.json via scripts/generate-models
+# Please do not edit it manually and adjust/re-run the script instead!
+
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any

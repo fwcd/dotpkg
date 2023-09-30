@@ -9,7 +9,8 @@ from typing import Any, Optional, cast
 import re
 import json
 
-ROOT = Path(__file__).resolve().parent.parent
+PATH = Path(__file__).resolve()
+ROOT = PATH.parent.parent
 SCHEMAS_ROOT = ROOT / 'schemas'
 GENERATION_ROOT = ROOT / 'dotpkg' / 'manifest'
 
@@ -295,7 +296,12 @@ def main():
             dataclass.methods.append(generate_to_dict_method(dataclass, output))
         
         with open(GENERATION_ROOT / f'{to_snake_case(name)}.py', 'w') as f:
-            raw = format_output(output)
+            raw = '\n'.join([
+                f'# NOTE: This file is auto-generated from {path.relative_to(ROOT)} via {PATH.relative_to(ROOT)}',
+                '# Please do not edit it manually and adjust/re-run the script instead!',
+                '',
+                format_output(output)
+            ])
             f.write(raw)
             
 
