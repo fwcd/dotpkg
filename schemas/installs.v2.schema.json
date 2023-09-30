@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "version": {
-      "type": "number",
+      "type": "integer",
       "description": "The version of the install manifest.",
       "const": 2
     },
