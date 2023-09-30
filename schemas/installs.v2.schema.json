@@ -24,11 +24,13 @@
           "paths": {
             "type": "array",
             "description": "The paths to the installed links.",
+            "default": [],
             "items": {
               "type": "string"
             }
           }
-        }
+        },
+        "required": ["targetDir"]
       }
     }
   }
