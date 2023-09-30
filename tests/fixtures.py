@@ -3,13 +3,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from dotpkg.commands import install_cmd, uninstall_cmd
+from dotpkg.install import install, uninstall
+from dotpkg.model import Dotpkg, DotpkgRef
 from dotpkg.options import Options
 
 TEST_ROOT = Path(__file__).resolve().parent
 TEST_PKGS = TEST_ROOT / 'pkgs'
 
-class SourcePkgFixture:
+class DotpkgFixture:
     def __init__(self, name: str):
         self.name = name
     
@@ -17,12 +18,15 @@ class SourcePkgFixture:
     def path(self) -> Path:
         return TEST_PKGS / self.name
     
+    @property
+    def dotpkg(self) -> Dotpkg:
+        return DotpkgRef(self.path).read()
+    
     def install(self, opts: Options):
-        # TODO: Split up installation into more fine-grained methods and test them here...
-        install_cmd([str(self.path)], opts=opts)
+        install(self.dotpkg, opts=opts)
     
     def uninstall(self, opts: Options):
-        uninstall_cmd([str(self.path)], opts=opts)
+        uninstall(self.dotpkg, opts=opts)
 
     @contextmanager
     def install_context(self, opts: Options):

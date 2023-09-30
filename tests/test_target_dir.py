@@ -1,10 +1,10 @@
 import unittest
 
-from tests.fixtures import SourcePkgFixture, HomeDirFixture
+from tests.fixtures import DotpkgFixture, HomeDirFixture
 
 class TestTargetDir(unittest.TestCase):
     def test_basic(self):
-        pkg = SourcePkgFixture('target-dir-basic')
+        pkg = DotpkgFixture('target-dir-basic')
 
         with HomeDirFixture() as home:
             with pkg.install_context(home.opts):
@@ -16,7 +16,7 @@ class TestTargetDir(unittest.TestCase):
                 self.assertEqual(file_path.resolve(), pkg.path / file_path.name)
     
     def test_multi(self):
-        pkg = SourcePkgFixture('target-dir-multi')
+        pkg = DotpkgFixture('target-dir-multi')
 
         with HomeDirFixture() as home:
             path = home.path / '.config' / 'b'
