@@ -39,7 +39,13 @@ def read_install_manifest(opts: Options) -> InstallsV2Manifest:
                     raw_manifest = None
     except FileNotFoundError:
         raw_manifest = None
-    return InstallsV2Manifest.from_dict(raw_manifest) if raw_manifest else InstallsV2Manifest()
+    manifest = InstallsV2Manifest.from_dict(raw_manifest) if raw_manifest else InstallsV2Manifest()
+    # Make sure that we don't accidentally forget to update either the type or
+    # the version (Unfortunately the type checker doesn't let us use f-strings
+    # such as f'InstallsV{INSTALL_MANIFEST_VERSION}' as a type, like TypeScript
+    # would...)
+    assert manifest.version == INSTALL_MANIFEST_VERSION
+    return manifest
 
 def write_install_manifest(manifest: InstallsManifest, opts: Options):
     path = install_manifest_path(opts)
