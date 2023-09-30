@@ -16,10 +16,23 @@ class Field:
     description: Optional[str] = None
 
 @dataclass
+class Parameter:
+    name: str
+    type: str
+
+@dataclass
+class Function:
+    name: str
+    parameters: list[Parameter]
+    return_type: str
+    body: list[str]
+
+@dataclass
 class Dataclass:
     name: str
     description: Optional[str] = None
-    fields: list[Field] = field(default_factory=lambda: [])
+    fields: list[Field] = field(default_factory=list)
+    methods: list[Function] = field(default_factory=list)
 
 @dataclass
 class Output:
@@ -39,6 +52,15 @@ def format_field(field: Field) -> list[str]:
     return [
         f'{field.name}: {field.type}',
         *([f"'''{field.description}'''"] if field.description else []),
+    ]
+
+def format_parameter(parameter: Parameter) -> str:
+    return f'{parameter.name}: {parameter.type}'
+
+def format_function(function: Function) -> list[str]:
+    return [
+        f"def {function.name}({', '.join(map(format_parameter, function.parameters))}) -> {function.return_type}:",
+        *indent(function.body),
     ]
 
 def format_dataclass(dataclass: Dataclass) -> list[str]:
