@@ -9,9 +9,9 @@ from typing import Any, Optional
 import re
 import json
 
-SCHEMAS = ['dotpkg', 'installs']
-
 ROOT = Path(__file__).resolve().parent.parent
+SCHEMAS_ROOT = ROOT / 'schemas'
+GENERATION_ROOT = ROOT / 'dotpkg' / 'manifest'
 
 @dataclass
 class Type:
@@ -51,11 +51,17 @@ class Output:
     imports: set[str] = field(default_factory=set)
     dataclasses: list[Dataclass] = field(default_factory=lambda: [])
 
+def lower_all(components: list[str]) -> list[str]:
+    return [c.lower() for c in components]
+
 def from_camel_case(raw: str) -> list[str]:
-    return [c.lower() for c in re.split(r'(?<=[a-z])(?=[A-Z])', raw)]
+    return lower_all(re.split(r'(?<=[a-z])(?=[A-Z])', raw))
 
 def to_snake_case(components: list[str]) -> str:
     return '_'.join(components)
+
+def to_pascal_case(components: list[str]) -> str:
+    return ''.join(c.capitalize() for c in components)
 
 def indent(lines: list[str]) -> list[str]:
     return [f'    {l}' for l in lines]
@@ -202,13 +208,14 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
     pass
 
 def main():
-    for name in SCHEMAS:
+    for path in SCHEMAS_ROOT.iterdir():
         output = Output()
+        name = path.name.split('.')[:-2]
 
-        with open(ROOT / 'schemas' / f'{name}.schema.json', 'r') as f:
+        with open(path, 'r') as f:
             raw = json.load(f)
             translate_schema(
-                name=f'{name.capitalize()}Manifest',
+                name=f'{to_pascal_case(name)}Manifest',
                 value=raw,
                 output=output
             )
@@ -221,7 +228,7 @@ def main():
             dataclass.methods.append(generate_from_dict_method(dataclass, output))
             dataclass.methods.append(generate_to_dict_method(dataclass, output))
         
-        with open(ROOT / 'dotpkg' / 'manifest' / f'{name}.py', 'w') as f:
+        with open(GENERATION_ROOT / f'{to_snake_case(name)}.py', 'w') as f:
             raw = '\n\n'.join([
                 '\n'.join(sorted(output.imports)),
                 *('\n'.join(format_dataclass(d)) for d in output.dataclasses),
