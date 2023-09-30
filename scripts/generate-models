@@ -59,6 +59,10 @@ class Output:
     typealiases: list[Typealias] = field(default_factory=list)
     dataclasses: list[Dataclass] = field(default_factory=list)
 
+@dataclass
+class NoneValue:
+    pass
+
 def lower_all(components: list[str]) -> list[str]:
     return [c.lower() for c in components]
 
@@ -92,6 +96,8 @@ def format_value(value: Any) -> str:
         return f"'{value}'"
     elif isinstance(value, int) or isinstance(value, float) or isinstance(value, bool):
         return str(value)
+    elif isinstance(value, NoneValue):
+        return 'None'
     elif isinstance(value, list):
         value = cast(list[Any], value)
         return f"[{', '.join(format_value(v) for v in value)}]"
@@ -187,21 +193,27 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
             )
             return Type('list', args=[format_type(item_type)])
         case 'object':
+            required = set(value.get('required', []))
             if 'properties' in value:
-                fields = [
-                    Field(
+                fields: list[Field] = []
+                for key, prop in value['properties'].items():
+                    field_type = translate_schema(
+                        name=key.capitalize(),
+                        value=prop,
+                        output=output,
+                    )
+                    default = prop.get('const') or prop.get('default')
+                    if key not in required and default is None:
+                        output.imports.add('from typing import Optional')
+                        field_type = Type('Optional', args=[format_type(field_type)])
+                        default = NoneValue()
+                    fields.append(Field(
                         name=to_snake_case(from_camel_case(key)),
                         original_name=key,
-                        type=translate_schema(
-                            name=key.capitalize(),
-                            value=prop,
-                            output=output,
-                        ),
-                        default=prop.get('const') or prop.get('default'),
+                        type=field_type,
+                        default=default,
                         description=prop.get('description'),
-                    )
-                    for key, prop in value['properties'].items()
-                ]
+                    ))
                 output.dataclasses.append(Dataclass(
                     name=name,
                     description=value.get('description'),

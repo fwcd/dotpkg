@@ -6,22 +6,23 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Literal
+from typing import Optional
 
 @dataclass
 class Installs:
     '''An installed dotpkg.'''
     
-    paths: list[str]
+    paths: Optional[list[str]] = field(default_factory=lambda: None)
     '''The paths to the installed links.'''
     
-    target_dir: str
+    target_dir: Optional[str] = field(default_factory=lambda: None)
     '''The installation path of the dotpkg.'''
     
     @staticmethod
     def from_dict(d: dict[str, Any]) -> Installs:
         return Installs(
-            target_dir=d['targetDir'],
-            paths=d['paths'],
+            target_dir=d.get('targetDir') or None,
+            paths=d.get('paths') or None,
         )
     
     def to_dict(self) -> dict[str, Any]:
