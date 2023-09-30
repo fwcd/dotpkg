@@ -12,7 +12,7 @@ from typing import Optional
 class InstallsEntry:
     '''An installed dotpkg.'''
     
-    target_dir: Optional[str] = field(default_factory=lambda: None)
+    target_dir: Optional[str] = None
     '''The installation path of the dotpkg.'''
     
     @staticmethod

@@ -64,6 +64,10 @@ class Output:
 class Quote:
     syntax: str
 
+@dataclass
+class Constant:
+    value: Any
+
 def lower_all(components: list[str]) -> list[str]:
     return [c.lower() for c in components]
 
@@ -99,6 +103,8 @@ def format_value(value: Any) -> str:
         return str(value)
     elif isinstance(value, Quote):
         return value.syntax
+    elif isinstance(value, Constant):
+        return format_value(value.value)
     elif isinstance(value, list):
         value = cast(list[Any], value)
         return f"[{', '.join(format_value(v) for v in value)}]"
@@ -112,7 +118,10 @@ def format_field(field: Field, output: Output) -> list[str]:
     s = f'{field.name}: {format_type(field.type)}'
     if field.default is not None:
         output.imports.add('from dataclasses import field')
-        s += f' = field(default_factory=lambda: {format_value(field.default)})'
+        if isinstance(field.default, Constant):
+            s += f' = {format_value(field.default)}'
+        else:
+            s += f' = field(default_factory=lambda: {format_value(field.default)})'
     return [
         s,
         *([f"'''{field.description}'''"] if field.description else []),
@@ -210,7 +219,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                     if key not in required and original_default is None:
                         output.imports.add('from typing import Optional')
                         field_type = Type('Optional', args=[format_type(field_type)])
-                        original_default = Quote('None')
+                        original_default = Constant(Quote('None'))
                     default = original_default
                     if field_type.is_dataclass:
                         if default == {}:

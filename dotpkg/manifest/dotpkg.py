@@ -12,22 +12,22 @@ from typing import Optional
 class Scripts:
     '''Scripts for handling lifecycle events.'''
     
-    install: Optional[str] = field(default_factory=lambda: None)
+    install: Optional[str] = None
     '''A shell command to invoke during installation.'''
     
-    postinstall: Optional[str] = field(default_factory=lambda: None)
+    postinstall: Optional[str] = None
     '''A shell command to invoke after installation.'''
     
-    postuninstall: Optional[str] = field(default_factory=lambda: None)
+    postuninstall: Optional[str] = None
     '''A shell command to invoke after uninstallation.'''
     
-    preinstall: Optional[str] = field(default_factory=lambda: None)
+    preinstall: Optional[str] = None
     '''A shell command to invoke prior to installation.'''
     
-    preuninstall: Optional[str] = field(default_factory=lambda: None)
+    preuninstall: Optional[str] = None
     '''A shell command to invoke prior to uninstallation.'''
     
-    uninstall: Optional[str] = field(default_factory=lambda: None)
+    uninstall: Optional[str] = None
     '''A shell command to invoke during uninstallation.'''
     
     @staticmethod
@@ -83,7 +83,7 @@ class DotpkgManifest:
     renames: dict[str, str] = field(default_factory=lambda: {})
     '''A set of rename rules that are applied to the symlink names. If empty or left unspecified, the file names are the same as their originals.'''
     
-    requires: Optional[Literal['logout', 'reboot']] = field(default_factory=lambda: None)
+    requires: Optional[Literal['logout', 'reboot']] = None
     '''Whether (un)installation requires logging out or a reboot of the computer.'''
     
     requires_on_path: list[str] = field(default_factory=lambda: [])
