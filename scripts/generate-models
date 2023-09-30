@@ -92,6 +92,11 @@ def format_dataclass(dataclass: Dataclass) -> list[str]:
     ]
 
 def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
+    '''
+    Translates the given JSON schema, adding dataclasses for nested types and
+    imports to the output as required.
+    '''
+
     match value['type']:
         case 'string':
             return Type('str')
@@ -142,6 +147,11 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
             raise ValueError(f'Unknown type {t}')
 
 def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    '''
+    Generates a method for parsing the given dataclass from a dictionary,
+    adding imports to the output as needed.
+    '''
+
     def field_from_dict(f: Field) -> str:
         # TODO: Defaults
         s = f"d['{f.original_name}']"
@@ -163,6 +173,11 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     )
 
 def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
+    '''
+    Generates a method for converting the given dataclass to a dictionary,
+    adding imports to the output as needed.
+    '''
+
     def field_to_dict(f: Field) -> str:
         # TODO: Defaults
         s = f'self.{f.name}'
