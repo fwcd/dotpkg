@@ -17,12 +17,12 @@ class TestCopy(unittest.TestCase):
                 self.assertEqual(home.read_install_manifest().installs[str(pkg.path)], InstallsEntry(
                     target_dir=str(home.path),
                     src_paths=[
-                        str(pkg.path / 'file.txt'),
                         str(pkg.path / 'dir'),
+                        str(pkg.path / 'file.txt'),
                     ],
                     paths=[
-                        str(home.path / 'file.txt'),
                         str(home.path / 'dir'),
+                        str(home.path / 'file.txt'),
                     ],
                 ))
                 

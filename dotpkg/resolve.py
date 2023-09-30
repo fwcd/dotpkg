@@ -12,7 +12,7 @@ import socket
 # Manifest resolution
 
 def find_link_candidates(src_dir: Path, target_dir: Path, renamer: Callable[[str], str] = lambda name: name) -> Iterable[tuple[Path, Path]]:
-    for src_path in src_dir.iterdir():
+    for src_path in sorted(src_dir.iterdir()):
         name = renamer(src_path.name)
         target_path = target_dir / name
 
