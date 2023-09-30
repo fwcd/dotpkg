@@ -60,7 +60,7 @@ class DotpkgManifest:
     scripts: Scripts
     '''Scripts for handling lifecycle events.'''
     
-    touch_files: str
+    touch_files: list[str]
     '''A list of paths to create in the target directory, if not already existing. Useful e.g. for private/ignored configs that are included by a packaged config.'''
     
     copy: bool = field(default_factory=lambda: False)
@@ -72,28 +72,28 @@ class DotpkgManifest:
     description: str = field(default_factory=lambda: '')
     '''A long, human-readable description of what this dotpkg contains (e.g. 'configurations for xyz').'''
     
-    host_specific_files: str = field(default_factory=lambda: [])
+    host_specific_files: list[str] = field(default_factory=lambda: [])
     '''A list of file (glob) patterns that are considered to be host-specific. Files that are irrelevant to the current host (e.g. those for other hosts) will be ignored. Each pattern should include '${hostname}' to refer to such files.'''
     
-    ignored_files: str = field(default_factory=lambda: [])
+    ignored_files: list[str] = field(default_factory=lambda: [])
     '''A list of file (glob) patterns that are to be ignored, i.e. not linked. This could e.g. be useful to store generic scripts in the dotpkg that are not intended to be linked into some config directory.'''
     
     is_scripts_only: bool = field(default_factory=lambda: False)
     '''Implicitly ignores all files for linking. Useful for packages that only use their install/uninstall scripts.'''
     
-    platforms: str = field(default_factory=lambda: [])
+    platforms: list[str] = field(default_factory=lambda: [])
     '''The platforms that this dotpkg is intended for. An empty array (the default) means support for all platforms. Only relevant if 'dotpkg install' is invoked without arguments.'''
     
     renames: dict[str, str] = field(default_factory=lambda: {})
     '''A set of rename rules that are applied to the symlink names. If empty or left unspecified, the file names are the same as their originals.'''
     
-    requires_on_path: str = field(default_factory=lambda: [])
+    requires_on_path: list[str] = field(default_factory=lambda: [])
     '''Binaries requires on the PATH for the package to be automatically installed when invoking 'dotpkg install' (usually the program configured, e.g. 'code'). Only relevant if 'dotpkg install' is invoked without arguments, otherwise the package will always be installed.'''
     
     skip_during_batch_install: bool = field(default_factory=lambda: False)
     '''Whether to skip the package during batch-install.'''
     
-    target_dir: str = field(default_factory=lambda: ['${home}'])
+    target_dir: list[str] = field(default_factory=lambda: ['${home}'])
     '''The target directory that the files from the dotpkg should be linked into. The first existing path from this list will be chosen (this is useful for cross-platform dotpkgs, since some programs place their configs in an OS-specific location).'''
     
     @staticmethod

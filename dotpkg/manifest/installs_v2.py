@@ -6,7 +6,7 @@ from typing import Any
 class Installs:
     '''An installed dotpkg.'''
     
-    paths: str
+    paths: list[str]
     '''The paths to the installed links.'''
     
     target_dir: str

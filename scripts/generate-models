@@ -176,11 +176,12 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
         case 'number':
             return Type('float')
         case 'array':
-            return translate_schema(
+            item_type = translate_schema(
                 name=name,
                 value=value['items'],
                 output=output,
             )
+            return Type('list', args=[format_type(item_type)])
         case 'object':
             if 'properties' in value:
                 fields = [
