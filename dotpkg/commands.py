@@ -34,7 +34,7 @@ def cwd_dotpkgs(opts: Options) -> DotpkgRefs:
 
 def resolve_refs(raw_dotpkg_paths: list[str], opts: Options) -> DotpkgRefs:
     if raw_dotpkg_paths:
-        return DotpkgRefs([DotpkgRef(Path(p)) for p in raw_dotpkg_paths], is_batch=False)
+        return DotpkgRefs([DotpkgRef(Path(p).resolve()) for p in raw_dotpkg_paths], is_batch=False)
     else:
         return cwd_dotpkgs(opts)
 
