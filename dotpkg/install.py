@@ -121,6 +121,10 @@ def install(pkg: Dotpkg, opts: Options):
             return name
 
         for src_path, target_path in find_link_candidates(pkg.path, target_dir, renamer):
+            def record_paths():
+                src_paths.append(src_path)
+                installed_paths.append(target_path)
+
             if src_path in ignores:
                 note(f'Ignoring {src_path}')
                 continue
@@ -131,10 +135,12 @@ def install(pkg: Dotpkg, opts: Options):
                 if should_copy:
                     if path_digest(target_path) == path_digest(src_path):
                         note(f'Skipping {target_path} (target and src hashes match)')
+                        record_paths()
                         continue
                 else:
                     if target_path.is_symlink() and target_path.resolve() == src_path.resolve():
                         note(f'Skipping {target_path} (already linked)')
+                        record_paths()
                         continue
 
                 def backup():
@@ -170,8 +176,7 @@ def install(pkg: Dotpkg, opts: Options):
             install_path(src_path, target_path, should_copy, opts)
 
             if not skipped:
-                src_paths.append(src_path)
-                installed_paths.append(target_path)
+                record_paths()
     
     run_script('install', pkg, opts)
     run_script('postinstall', pkg, opts)
