@@ -1,0 +1,4 @@
+from dotpkg.manifest.installs_v3 import InstallsV3Manifest
+
+CurrentInstallsManifest = InstallsV3Manifest
+CurrentInstallsEntry = CurrentInstallsManifest.InstallsEntry

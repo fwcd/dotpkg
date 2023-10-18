@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from dotpkg.install import install, read_install_manifest, uninstall
-from dotpkg.manifest.installs_v2 import InstallsV2Manifest
+from dotpkg.manifest.installs import InstallsManifest
 from dotpkg.model import Dotpkg, DotpkgRef
 from dotpkg.options import Options
 
@@ -62,5 +62,5 @@ class HomeDirFixture:
             home=self.path,
         )
 
-    def read_install_manifest(self) -> InstallsV2Manifest:
+    def read_install_manifest(self) -> InstallsManifest:
         return read_install_manifest(self.opts)
