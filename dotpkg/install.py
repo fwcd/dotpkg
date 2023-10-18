@@ -1,11 +1,13 @@
 from itertools import zip_longest
 from pathlib import Path
-from typing import Optional
+from typing import Any, cast
 
-from dotpkg.constants import INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_VERSION
+from dotpkg.constants import INSTALL_MANIFEST_NAME
 from dotpkg.manifest.dotpkg import DotpkgManifest
 from dotpkg.manifest.installs import InstallsManifest
-from dotpkg.manifest.installs_v3 import InstallsEntry, InstallsV3Manifest
+from dotpkg.manifest.installs_v1 import InstallsV1Manifest
+from dotpkg.manifest.installs_v2 import InstallsV2Manifest
+from dotpkg.manifest.installs_v3 import InstallsV3Manifest
 from dotpkg.model import Dotpkg
 from dotpkg.options import Options
 from dotpkg.resolve import find_link_candidates, find_target_dir, resolve_ignores, resolve_manifest_str
@@ -27,26 +29,19 @@ def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Opt
 def install_manifest_path(opts: Options) -> Path:
     return opts.state_dir / INSTALL_MANIFEST_NAME
 
-def read_install_manifest(opts: Options) -> InstallsV3Manifest:
+def read_install_manifest(opts: Options) -> InstallsManifest:
     try:
         path = install_manifest_path(opts)
         with open(path, 'r') as f:
             raw_manifest = json.load(f)
             version = raw_manifest.get('version', 0)
-            if version < INSTALL_MANIFEST_VERSION:
-                if not confirm(f'An older install manifest with version {version} (current is {INSTALL_MANIFEST_VERSION}) exists at {install_manifest_path(opts)}, which may be incompatible with the current version. Should this be used anyway? If no, the old one will be ignored/overwritten.', opts):
-                    raw_manifest['version'] = INSTALL_MANIFEST_VERSION
-                else:
-                    raw_manifest = None
+            match version:
+                case 1: return InstallsV1Manifest.from_dict(raw_manifest)
+                case 2: return InstallsV2Manifest.from_dict(raw_manifest)
+                case 3: return InstallsV3Manifest.from_dict(raw_manifest)
+                case _: raise ValueError(f'Invalid manifest version {version}')
     except FileNotFoundError:
-        raw_manifest = None
-    manifest = InstallsV3Manifest.from_dict(raw_manifest) if raw_manifest else InstallsV3Manifest()
-    # Make sure that we don't accidentally forget to update either the type or
-    # the version (Unfortunately the type checker doesn't let us use f-strings
-    # such as f'InstallsV{INSTALL_MANIFEST_VERSION}' as a type, like TypeScript
-    # would...)
-    assert manifest.version == INSTALL_MANIFEST_VERSION
-    return manifest
+        return InstallsV3Manifest()
 
 def write_install_manifest(manifest: InstallsManifest, opts: Options):
     path = install_manifest_path(opts)
@@ -87,7 +82,7 @@ def install(pkg: Dotpkg, opts: Options):
 
     if install_key in installs:
         existing_install = installs[install_key]
-        existing_paths = [Path(path) for path in existing_install.paths]
+        existing_paths = [Path(path) for path in existing_install.paths] if not isinstance(existing_install, InstallsV1Manifest.InstallsEntry) else []
         existing_target_dir = Path(existing_install.target_dir or str(target_dir))
         if confirm(f'The dotpkg {pkg.name} is already installed to {existing_target_dir} and currently targets {target_dir}. Should it be uninstalled first?', opts):
             uninstall(pkg, opts)
@@ -187,12 +182,29 @@ def install(pkg: Dotpkg, opts: Options):
     run_script('postinstall', pkg, opts)
 
     if opts.update_install_manifest:
-        installs[install_key] = InstallsEntry(
-            target_dir=str(target_dir),
-            src_paths=[str(path) for path in src_paths],
-            paths=[str(path) for path in installed_paths],
-        )
-        install_manifest.installs = installs
+        match install_manifest.version:
+            case 1:
+                installs[install_key] = InstallsV1Manifest.InstallsEntry(
+                    target_dir=str(target_dir),
+                )
+            case 2:
+                installs[install_key] = InstallsV2Manifest.InstallsEntry(
+                    target_dir=str(target_dir),
+                    src_paths=[str(path) for path in src_paths],
+                    paths=[str(path) for path in installed_paths],
+                )
+            case 3:
+                installs[install_key] = InstallsV3Manifest.InstallsEntry(
+                    target_dir=str(target_dir),
+                    src_paths=[str(path) for path in src_paths],
+                    paths=[str(path) for path in installed_paths],
+                    checksums=[path_digest(path) for path in installed_paths],
+                )
+        # The type checker cannot verify that this is the same manifest type. We
+        # might be able to model that with "generics", i.e. type variables but
+        # that would probably require splitting out the majority of this
+        # function into a new one.
+        install_manifest.installs = cast(Any, installs)
         write_install_manifest(install_manifest, opts)
     
     display_caveats(pkg.manifest)
@@ -201,7 +213,7 @@ def uninstall(pkg: Dotpkg, opts: Options):
     install_manifest = read_install_manifest(opts)
     installs = {**install_manifest.installs}
     install_key = str(pkg.path)
-    install: Optional[InstallsEntry] = installs.get(install_key)
+    install = installs.get(install_key)
 
     run_script('preuninstall', pkg, opts)
     run_script('uninstall', pkg, opts)
@@ -209,10 +221,10 @@ def uninstall(pkg: Dotpkg, opts: Options):
     scripts_only = pkg.manifest.is_scripts_only
 
     if not scripts_only:
-        target_dir = Path(install.target_dir) if install else find_target_dir(pkg.manifest, opts)
+        target_dir = Path(install.target_dir) if install and install.target_dir else find_target_dir(pkg.manifest, opts)
         should_copy = pkg.manifest.copy
 
-        if install:
+        if install and not isinstance(install, InstallsV1Manifest.InstallsEntry):
             paths = zip_longest(map(Path, install.src_paths), map(Path, install.paths), fillvalue=None)
         else:
             paths = find_link_candidates(pkg.path, target_dir)
@@ -260,7 +272,11 @@ def uninstall(pkg: Dotpkg, opts: Options):
 
     if opts.update_install_manifest and install_key in installs:
         del installs[install_key]
-        install_manifest.installs = installs
+        # The type checker cannot verify that this is the same manifest type. We
+        # might be able to model that with "generics", i.e. type variables but
+        # that would probably require splitting out the majority of this
+        # function into a new one.
+        install_manifest.installs = cast(Any, installs)
         write_install_manifest(install_manifest, opts)
 
     display_caveats(pkg.manifest)

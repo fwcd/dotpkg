@@ -37,9 +37,9 @@
               "type": "string"
             }
           },
-          "sha256sums": {
+          "checksums": {
             "type": "array",
-            "description": "The SHA256 checksums of the installed files. Mainly relevant for copy packages.",
+            "description": "The SHA256 digests of the installed files. Mainly relevant for copy packages.",
             "default": [],
             "items": {
               "type": "string"

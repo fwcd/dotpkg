@@ -40,8 +40,8 @@ class Function:
     decorators: list[str]
     name: str
     parameters: list[Parameter]
-    return_type: Type
-    body: list[str]
+    return_type: Optional[Type]=None
+    body: list[str] = field(default_factory=list)
 
 @dataclass
 class Typealias:
@@ -52,6 +52,7 @@ class Typealias:
 class Dataclass:
     name: str
     description: Optional[str] = None
+    childs: list[Dataclass] = field(default_factory=list)
     fields: list[Field] = field(default_factory=list)
     methods: list[Function] = field(default_factory=list)
 
@@ -134,7 +135,11 @@ def format_parameter(parameter: Parameter) -> str:
 def format_function(function: Function) -> list[str]:
     return [
         *function.decorators,
-        f"def {function.name}({', '.join(map(format_parameter, function.parameters))}) -> {format_type(function.return_type)}:",
+        ''.join([
+            f"def {function.name}({', '.join(map(format_parameter, function.parameters))})",
+            *([f' -> {format_type(function.return_type)}'] if function.return_type else []),
+            ':',
+        ]),
         *indent(function.body),
     ]
 
@@ -148,6 +153,7 @@ def format_dataclass(dataclass: Dataclass, output: Output) -> list[str]:
         f'class {dataclass.name}:',
         *indent([
             *([f"'''{dataclass.description}'''", ''] if dataclass.description else []),
+            *[l for c in dataclass.childs for l in [*format_dataclass(c, output), '']],
             *[l for f in sorted(dataclass.fields, key=lambda f: [f.default is not None, f.name]) for l in [*format_field(f, output), '']],
             *[l for f in dataclass.methods for l in [*format_function(f), '']],
         ]),
@@ -163,7 +169,7 @@ def format_output(output: Output) -> str:
         '',
     ])
 
-def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
+def translate_schema(name: str, value: dict[str, Any], output: Output, parent: Optional[Dataclass]) -> Type:
     '''
     Translates the given JSON schema, adding dataclasses for nested types and
     imports to the output as required.
@@ -186,6 +192,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                 name=name,
                 value=variant,
                 output=output,
+                parent=parent,
             )
             for variant in value['anyOf']
         ])
@@ -204,17 +211,22 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                 name=name,
                 value=value['items'],
                 output=output,
+                parent=parent,
             )
             return Type('list', args=[item_type])
         case 'object':
             required = set(value.get('required', []))
             if 'properties' in value:
-                fields: list[Field] = []
+                child = Dataclass(
+                    name=name,
+                    description=value.get('description'),
+                )
                 for key, prop in value['properties'].items():
                     field_type = translate_schema(
                         name=key.capitalize(),
                         value=prop,
                         output=output,
+                        parent=child,
                     )
                     original_default = prop.get('const') or prop.get('default')
                     if key not in required and original_default is None:
@@ -227,7 +239,7 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                             default = Quote(f'{field_type.raw}()')
                         else:
                             raise ValueError('Non-empty default value are not supported yet for dataclasses')
-                    fields.append(Field(
+                    child.fields.append(Field(
                         name=to_snake_case(from_camel_case(key)),
                         original_name=key,
                         type=field_type,
@@ -235,17 +247,19 @@ def translate_schema(name: str, value: dict[str, Any], output: Output) -> Type:
                         original_default=original_default,
                         description=prop.get('description'),
                     ))
-                output.dataclasses.append(Dataclass(
-                    name=name,
-                    description=value.get('description'),
-                    fields=fields,
-                ))
-                return Type(name, is_dataclass=True)
+                
+                if parent is not None:
+                    parent.childs.append(child)
+                    return Type(f'{parent.name}.{name}', is_dataclass=True)
+                else:
+                    output.dataclasses.append(child)
+                    return Type(name, is_dataclass=True)
             elif 'additionalProperties' in value:
                 t = translate_schema(
                     name=f'{name}Entry',
                     value=value['additionalProperties'],
-                    output=output
+                    output=output,
+                    parent=parent,
                 )
                 return Type('dict', args=[Type('str'), t])
             else:
@@ -282,12 +296,11 @@ def generate_from_dict_method(dataclass: Dataclass, output: Output) -> Function:
     output.imports.add('from typing import Any')
 
     return Function(
-        decorators=['@staticmethod'],
+        decorators=['@classmethod'],
         name='from_dict',
-        parameters=[Parameter(name='d', type=Type('dict', args=[Type('str'), Type('Any')]))],
-        return_type=Type(dataclass.name, is_dataclass=True),
+        parameters=[Parameter(name='cls'), Parameter(name='d', type=Type('dict', args=[Type('str'), Type('Any')]))],
         body=[
-            f'return {dataclass.name}(',
+            f'return cls(',
             *indent([f"{f.name}={field_from_dict(f)}," for f in dataclass.fields]),
             f')',
         ],
@@ -326,7 +339,13 @@ def generate_to_dict_method(dataclass: Dataclass, output: Output) -> Function:
             '}',
         ],
     )
-    pass
+
+def generate_methods_in(dataclass: Dataclass, output: Output):
+    dataclass.methods.append(generate_from_dict_method(dataclass, output))
+    dataclass.methods.append(generate_to_dict_method(dataclass, output))
+
+    for child in dataclass.childs:
+        generate_methods_in(child, output)
 
 def main():
     for path in SCHEMAS_ROOT.iterdir():
@@ -338,15 +357,15 @@ def main():
             top_level_type = translate_schema(
                 name=to_manifest_name(name),
                 value=raw,
-                output=output
+                output=output,
+                parent=None,
             )
 
             if not top_level_type.is_dataclass:
                 output.typealiases.append(Typealias(name=to_manifest_name(name), type=top_level_type))
         
         for dataclass in output.dataclasses:
-            dataclass.methods.append(generate_from_dict_method(dataclass, output))
-            dataclass.methods.append(generate_to_dict_method(dataclass, output))
+            generate_methods_in(dataclass, output)
         
         with open(GENERATION_ROOT / f'{to_snake_case(name)}.py', 'w') as f:
             raw = '\n'.join([
@@ -356,7 +375,6 @@ def main():
                 format_output(output)
             ])
             f.write(raw)
-            
 
 if __name__ == '__main__':
     main()

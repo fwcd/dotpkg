@@ -9,52 +9,52 @@ from typing import Literal
 from typing import Optional
 
 @dataclass
-class Scripts:
-    '''Scripts for handling lifecycle events.'''
-    
-    install: Optional[str] = None
-    '''A shell command to invoke during installation.'''
-    
-    postinstall: Optional[str] = None
-    '''A shell command to invoke after installation.'''
-    
-    postuninstall: Optional[str] = None
-    '''A shell command to invoke after uninstallation.'''
-    
-    preinstall: Optional[str] = None
-    '''A shell command to invoke prior to installation.'''
-    
-    preuninstall: Optional[str] = None
-    '''A shell command to invoke prior to uninstallation.'''
-    
-    uninstall: Optional[str] = None
-    '''A shell command to invoke during uninstallation.'''
-    
-    @staticmethod
-    def from_dict(d: dict[str, Any]) -> Scripts:
-        return Scripts(
-            preinstall=d.get('preinstall') or None,
-            install=d.get('install') or None,
-            postinstall=d.get('postinstall') or None,
-            preuninstall=d.get('preuninstall') or None,
-            uninstall=d.get('uninstall') or None,
-            postuninstall=d.get('postuninstall') or None,
-        )
-    
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            'preinstall': self.preinstall,
-            'install': self.install,
-            'postinstall': self.postinstall,
-            'preuninstall': self.preuninstall,
-            'uninstall': self.uninstall,
-            'postuninstall': self.postuninstall,
-        }
-    
-
-@dataclass
 class DotpkgManifest:
     '''A configuration file for describing dotfile packages (dotpkg.json)'''
+    
+    @dataclass
+    class Scripts:
+        '''Scripts for handling lifecycle events.'''
+        
+        install: Optional[str] = None
+        '''A shell command to invoke during installation.'''
+        
+        postinstall: Optional[str] = None
+        '''A shell command to invoke after installation.'''
+        
+        postuninstall: Optional[str] = None
+        '''A shell command to invoke after uninstallation.'''
+        
+        preinstall: Optional[str] = None
+        '''A shell command to invoke prior to installation.'''
+        
+        preuninstall: Optional[str] = None
+        '''A shell command to invoke prior to uninstallation.'''
+        
+        uninstall: Optional[str] = None
+        '''A shell command to invoke during uninstallation.'''
+        
+        @classmethod
+        def from_dict(cls, d: dict[str, Any]):
+            return cls(
+                preinstall=d.get('preinstall') or None,
+                install=d.get('install') or None,
+                postinstall=d.get('postinstall') or None,
+                preuninstall=d.get('preuninstall') or None,
+                uninstall=d.get('uninstall') or None,
+                postuninstall=d.get('postuninstall') or None,
+            )
+        
+        def to_dict(self) -> dict[str, Any]:
+            return {
+                'preinstall': self.preinstall,
+                'install': self.install,
+                'postinstall': self.postinstall,
+                'preuninstall': self.preuninstall,
+                'uninstall': self.uninstall,
+                'postuninstall': self.postuninstall,
+            }
+        
     
     name: str
     '''The name of the dotpkg (usually a short, kebab-cases identifier e.g. referring to the program configured). By default this is the name of the parent dir.'''
@@ -89,7 +89,7 @@ class DotpkgManifest:
     requires_on_path: list[str] = field(default_factory=lambda: [])
     '''Binaries requires on the PATH for the package to be automatically installed when invoking 'dotpkg install' (usually the program configured, e.g. 'code'). Only relevant if 'dotpkg install' is invoked without arguments, otherwise the package will always be installed.'''
     
-    scripts: Scripts = field(default_factory=lambda: Scripts())
+    scripts: DotpkgManifest.Scripts = field(default_factory=lambda: DotpkgManifest.Scripts())
     '''Scripts for handling lifecycle events.'''
     
     skip_during_batch_install: bool = field(default_factory=lambda: False)
@@ -101,9 +101,9 @@ class DotpkgManifest:
     touch_files: list[str] = field(default_factory=lambda: [])
     '''A list of paths to create in the target directory, if not already existing. Useful e.g. for private/ignored configs that are included by a packaged config.'''
     
-    @staticmethod
-    def from_dict(d: dict[str, Any]) -> DotpkgManifest:
-        return DotpkgManifest(
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]):
+        return cls(
             name=d['name'],
             description=d.get('description') or '',
             requires_on_path=[v for v in (d.get('requiresOnPath') or [])],
@@ -118,7 +118,7 @@ class DotpkgManifest:
             copy=d.get('copy') or False,
             is_scripts_only=d.get('isScriptsOnly') or False,
             requires=d.get('requires') or None,
-            scripts=Scripts.from_dict(d.get('scripts') or {}),
+            scripts=DotpkgManifest.Scripts.from_dict(d.get('scripts') or {}),
         )
     
     def to_dict(self) -> dict[str, Any]:
