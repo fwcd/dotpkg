@@ -61,6 +61,6 @@ class HomeDirFixture:
             cwd=TEST_PKGS,
             home=self.path,
         )
-
+    
     def read_install_manifest(self) -> InstallsManifest:
         return read_install_manifest(self.opts)
