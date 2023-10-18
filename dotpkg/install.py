@@ -5,7 +5,7 @@ from typing import Optional
 from dotpkg.constants import INSTALL_MANIFEST_NAME, INSTALL_MANIFEST_VERSION
 from dotpkg.manifest.dotpkg import DotpkgManifest
 from dotpkg.manifest.installs import InstallsManifest
-from dotpkg.manifest.installs_v2 import InstallsEntry, InstallsV2Manifest
+from dotpkg.manifest.installs_v3 import InstallsEntry, InstallsV3Manifest
 from dotpkg.model import Dotpkg
 from dotpkg.options import Options
 from dotpkg.resolve import find_link_candidates, find_target_dir, resolve_ignores, resolve_manifest_str
@@ -27,7 +27,7 @@ def install_path(src_path: Path, target_path: Path, should_copy: bool, opts: Opt
 def install_manifest_path(opts: Options) -> Path:
     return opts.state_dir / INSTALL_MANIFEST_NAME
 
-def read_install_manifest(opts: Options) -> InstallsV2Manifest:
+def read_install_manifest(opts: Options) -> InstallsV3Manifest:
     try:
         path = install_manifest_path(opts)
         with open(path, 'r') as f:
@@ -40,7 +40,7 @@ def read_install_manifest(opts: Options) -> InstallsV2Manifest:
                     raw_manifest = None
     except FileNotFoundError:
         raw_manifest = None
-    manifest = InstallsV2Manifest.from_dict(raw_manifest) if raw_manifest else InstallsV2Manifest()
+    manifest = InstallsV3Manifest.from_dict(raw_manifest) if raw_manifest else InstallsV3Manifest()
     # Make sure that we don't accidentally forget to update either the type or
     # the version (Unfortunately the type checker doesn't let us use f-strings
     # such as f'InstallsV{INSTALL_MANIFEST_VERSION}' as a type, like TypeScript

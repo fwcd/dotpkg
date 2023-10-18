@@ -11,7 +11,7 @@
     "version": {
       "type": "integer",
       "description": "The version of the install manifest.",
-      "default": 2
+      "default": 3
     }
   },
   "anyOf": [
@@ -20,6 +20,9 @@
     },
     {
       "$ref": "installs.v2.schema.json"
+    },
+    {
+      "$ref": "installs.v3.schema.json"
     }
   ]
 }
