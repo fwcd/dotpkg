@@ -79,8 +79,8 @@ def sync_cmd(raw_paths: list[str], opts: Options):
     uninstall_cmd(raw_paths, opts)
     install_cmd(raw_paths, opts)
 
-def upgrade_install_manifest_cmd(raw_paths: list[str], opts: Options):
-    if raw_paths:
+def upgrade_install_manifest_cmd(unused_args: list[str], opts: Options):
+    if unused_args:
         print('This command expects no arguments!')
         sys.exit(1)
 
