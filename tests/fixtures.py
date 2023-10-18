@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from dotpkg.commands import upgrade_install_manifest_cmd
-from dotpkg.install import install, read_install_manifest, uninstall
+from dotpkg.install import install, read_install_manifest, uninstall, write_install_manifest
 from dotpkg.manifest.installs import InstallsManifest
 from dotpkg.model import Dotpkg, DotpkgRef
 from dotpkg.options import Options
@@ -66,5 +66,8 @@ class HomeDirFixture:
     def upgrade_install_manifest(self):
         upgrade_install_manifest_cmd([], self.opts)
     
+    def write_install_manifest(self, manifest: InstallsManifest):
+        write_install_manifest(manifest, self.opts)
+
     def read_install_manifest(self) -> InstallsManifest:
         return read_install_manifest(self.opts)
