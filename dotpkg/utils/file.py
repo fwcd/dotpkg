@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import ByteString, Protocol
 
 from dotpkg.options import Options
+from dotpkg.utils.log import warn
 
 import os
 import hashlib
@@ -34,8 +35,10 @@ def hash_dir(path: Path, hash: Hash):
 def hash_path(path: Path, hash: Hash):
     if path.is_dir():
         hash_dir(path, hash)
-    else:
+    elif path.is_file():
         hash_file(path, hash)
+    else:
+        warn(f'Encountered strange path {path} that is neither a file nor directory (thus cannot be hashed)')
 
 def path_digest(path: Path) -> str:
     hash = hashlib.sha256()

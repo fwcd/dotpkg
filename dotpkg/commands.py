@@ -1,10 +1,11 @@
 from pathlib import Path
 
 from dotpkg.constants import IGNORED_NAMES
-from dotpkg.install import install, uninstall
+from dotpkg.install import install, install_manifest_path, read_install_manifest, uninstall
 from dotpkg.resolve import batch_skip_reason
 from dotpkg.model import DotpkgRef, DotpkgRefs
 from dotpkg.options import Options
+from dotpkg.utils.file import move
 from dotpkg.utils.log import info, warn
 from dotpkg.utils.prompt import confirm
 
@@ -74,6 +75,22 @@ def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
         info(f"Uninstalling {name} ({pkg.manifest.description})...")
         uninstall(pkg, opts)
 
-def sync_cmd(dotpkgs: list[str], opts: Options):
-    uninstall_cmd(dotpkgs, opts)
-    install_cmd(dotpkgs, opts)
+def sync_cmd(raw_paths: list[str], opts: Options):
+    uninstall_cmd(raw_paths, opts)
+    install_cmd(raw_paths, opts)
+
+def upgrade_installs_cmd(raw_paths: list[str], opts: Options):
+    if raw_paths:
+        print('This command expects no arguments!')
+        sys.exit(1)
+
+    manifest = read_install_manifest(opts)
+    raw_paths = list(manifest.installs.keys())
+
+    uninstall_cmd(raw_paths, opts)
+
+    info('Backing install manifest up and removing it')
+    manifest_path = install_manifest_path(opts)
+    move(manifest_path, manifest_path.with_name(f'{manifest_path.name}.v{manifest.version}.backup'), opts)
+
+    install_cmd(raw_paths, opts)

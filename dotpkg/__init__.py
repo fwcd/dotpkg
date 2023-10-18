@@ -3,7 +3,7 @@ import sys
 
 from pathlib import Path
 
-from dotpkg.commands import install_cmd, uninstall_cmd, sync_cmd
+from dotpkg.commands import install_cmd, uninstall_cmd, sync_cmd, upgrade_installs_cmd
 from dotpkg.install import install_manifest_path
 from dotpkg.options import Options
 from dotpkg.utils.log import warn
@@ -18,6 +18,7 @@ COMMANDS = {
     'install': install_cmd,
     'uninstall': uninstall_cmd,
     'sync': sync_cmd,
+    'upgrade-installs': upgrade_installs_cmd,
 }
 
 def main():
