@@ -150,16 +150,21 @@ def install(pkg: Dotpkg, opts: Options):
                 def overwrite():
                     remove(target_path, opts)
                     install_path(src_path, target_path, should_copy, opts)
-
+                
                 def skip():
                     note(f'Skipping {target_path}')
                     nonlocal skipped
                     skipped = True
 
+                def theirs():
+                    move(target_path, src_path, opts)
+                    install_path(src_path, target_path, should_copy, opts)
+
                 choices = {
                     'backup': backup,
                     'overwrite': overwrite,
-                    'skip': skip
+                    'skip': skip,
+                    'theirs': theirs,
                 }
 
                 if should_copy:
