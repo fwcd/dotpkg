@@ -226,11 +226,16 @@ def uninstall(pkg: Dotpkg, opts: Options):
         should_copy = pkg.manifest.copy
 
         if install and not isinstance(install, InstallsV1Manifest.InstallsEntry):
-            paths = zip_longest(map(Path, install.src_paths), map(Path, install.paths), fillvalue=None)
+            paths = list(zip_longest(map(Path, install.src_paths), map(Path, install.paths), fillvalue=None))
         else:
-            paths = find_link_candidates(pkg.path, target_dir)
+            paths = list(find_link_candidates(pkg.path, target_dir))
+        
+        if install and not isinstance(install, InstallsV1Manifest.InstallsEntry) and not isinstance(install, InstallsV2Manifest.InstallsEntry):
+            checksums = install.checksums
+        else:
+            checksums = [path_digest(src_path) if src_path else None for src_path, _ in paths]
 
-        for src_path, target_path in paths:
+        for (src_path, target_path), checksum in zip_longest(paths, checksums):
             if not target_path:
                 note(f'Skipping src path {src_path} (no target path)')
                 continue
@@ -248,11 +253,16 @@ def uninstall(pkg: Dotpkg, opts: Options):
                     note(f'Skipping {target_path} (is a symlink while the package is copy)')
                     continue
 
-                target_hash = path_digest(target_path)
-                src_hash = path_digest(src_path)
+                if not checksum:
+                    warn(f'Skipping {target_path} (missing checksum)')
+                    continue
 
-                if target_hash != src_hash:
-                    note(f'Skipping {target_path} (target hash {target_hash} != src hash {src_hash})')
+                target_checksum = path_digest(target_path)
+                print(target_checksum)
+                print(checksum)
+
+                if target_checksum != checksum:
+                    note(f'Skipping {target_path} (target checksum {target_checksum} != {checksum})')
                     continue
             else:
                 if not target_path.is_symlink():
