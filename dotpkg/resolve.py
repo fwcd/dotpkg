@@ -83,7 +83,7 @@ def batch_skip_reason(manifest: DotpkgManifest, opts: Options) -> Optional[str]:
     our_platform = platform.system().lower()
     supported_platforms: set[str] = set(manifest.platforms)
     if supported_platforms and (our_platform not in supported_platforms):
-        return f"Platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))}"
+        return f"Platform {our_platform} is not supported, supported {'is' if len(supported_platforms) == 1 else 'are'} {', '.join(sorted(supported_platforms))}"
 
     unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
     if unsatisfied_reqs:
