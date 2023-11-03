@@ -174,7 +174,7 @@ def install(pkg: Dotpkg, opts: Options):
                     #       and show non-dotpkg symlink destination otherwise.
                     prompt_msg = f'{target_path} exists and is not a link into the dotpkg.'
 
-                response = prompt(prompt_msg, sorted(choices.keys()), 'skip', opts)
+                response = prompt(prompt_msg, sorted(choices.keys()), 'backup', opts)
                 choices.get(response, skip)()
                 continue
 
