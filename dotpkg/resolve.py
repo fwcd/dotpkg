@@ -76,16 +76,22 @@ def unsatisfied_path_requirements(manifest: DotpkgManifest) -> Iterable[str]:
         if not shutil.which(requirement):
             yield requirement
 
-def batch_skip_reason(manifest: DotpkgManifest) -> Optional[str]:
-    unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
-    supported_platforms: set[str] = set(manifest.platforms)
-    our_platform = platform.system().lower()
-
+def batch_skip_reason(manifest: DotpkgManifest, opts: Options) -> Optional[str]:
     if manifest.skip_during_batch_install:
         return f'Batch-install'
+
+    our_platform = platform.system().lower()
+    supported_platforms: set[str] = set(manifest.platforms)
     if supported_platforms and (our_platform not in supported_platforms):
         return f"Platform {our_platform} is not supported, supported are {', '.join(sorted(supported_platforms))}"
+
+    unsatisfied_reqs = list(unsatisfied_path_requirements(manifest))
     if unsatisfied_reqs:
         return f"Could not find {', '.join(unsatisfied_reqs)} on PATH"
+
+    try:
+        find_target_dir(manifest, opts)
+    except NoTargetDirError as e:
+        return str(e)
 
     return None
