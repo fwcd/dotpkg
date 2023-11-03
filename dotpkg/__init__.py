@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 from dotpkg.commands import install_cmd, uninstall_cmd, sync_cmd, upgrade_install_manifest_cmd
 from dotpkg.install import install_manifest_path
 from dotpkg.options import Options
+from dotpkg.utils.prompt import confirm
 from dotpkg.utils.log import warn
 
 if sys.version_info < (3, 10):
@@ -44,5 +46,10 @@ def main():
 
     if opts.dry_run:
         warn("Performing dry run (i.e. not actually changing any files)")
+    
+    if os.geteuid() == 0 and (Path('/Users') in opts.home.parents or Path('/home') in opts.home.parents):
+        warn(f'You appear to be running as root, but with a user home directory ({opts.home}). This is discouraged since the user cannot uninstall any root-installed packages.')
+        if not confirm("Are you sure you want to do this? (Perhaps you forgot to use 'sudo -H'?)", opts):
+            sys.exit(0)
 
     COMMANDS[args.command](args.subargs, opts)
