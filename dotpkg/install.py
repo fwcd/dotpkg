@@ -258,8 +258,6 @@ def uninstall(pkg: Dotpkg, opts: Options):
                     continue
 
                 target_checksum = path_digest(target_path)
-                print(target_checksum)
-                print(checksum)
 
                 if target_checksum != checksum:
                     note(f'Skipping {target_path} (target checksum {target_checksum} != {checksum})')
