@@ -23,6 +23,9 @@
     },
     {
       "$ref": "installs.v3.schema.json"
+    },
+    {
+      "$ref": "installs.v4.schema.json"
     }
   ]
 }
