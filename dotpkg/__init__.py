@@ -5,10 +5,11 @@ import sys
 from pathlib import Path
 
 from dotpkg.commands import install_cmd, uninstall_cmd, sync_cmd, upgrade_install_manifest_cmd
+from dotpkg.error import DotpkgError
 from dotpkg.install import install_manifest_path
 from dotpkg.options import Options
 from dotpkg.utils.prompt import confirm
-from dotpkg.utils.log import warn
+from dotpkg.utils.log import warn, error
 
 if sys.version_info < (3, 10):
     print('Python version >= 3.10 is required!')
@@ -52,4 +53,8 @@ def main():
         if not confirm("Are you sure you want to do this? (Perhaps you forgot to use 'sudo -H'?)", opts):
             sys.exit(0)
 
-    COMMANDS[args.command](args.subargs, opts)
+    try:
+        COMMANDS[args.command](args.subargs, opts)
+    except DotpkgError as e:
+        error(str(e))
+        sys.exit(1)

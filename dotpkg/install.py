@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from dotpkg.constants import INSTALL_MANIFEST_NAME
+from dotpkg.error import InvalidManifestError
 from dotpkg.manifest.alias import CurrentInstallsManifest
 from dotpkg.manifest.dotpkg import DotpkgManifest
 from dotpkg.manifest.installs import InstallsManifest
@@ -40,7 +41,7 @@ def read_install_manifest(opts: Options) -> InstallsManifest:
                 case 1: return InstallsV1Manifest.from_dict(raw_manifest)
                 case 2: return InstallsV2Manifest.from_dict(raw_manifest)
                 case 3: return InstallsV3Manifest.from_dict(raw_manifest)
-                case _: raise ValueError(f'Invalid manifest version {version}')
+                case _: raise InvalidManifestError(f'Invalid manifest version {version}')
     except FileNotFoundError:
         return CurrentInstallsManifest()
 

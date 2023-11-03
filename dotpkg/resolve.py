@@ -2,10 +2,10 @@ from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from dotpkg.constants import IGNORED_NAMES
+from dotpkg.error import NoTargetDirError
 from dotpkg.manifest.dotpkg import DotpkgManifest
 from dotpkg.model import Dotpkg
 from dotpkg.options import Options
-from dotpkg.utils.log import error
 
 import platform
 import shutil
@@ -69,7 +69,7 @@ def find_target_dir(manifest: DotpkgManifest, opts: Options) -> Path:
         # Defer creation until after potentially uninstalling an old version
         return dir_paths[0]
 
-    return error(f'No suitable targetDir found in {raw_dirs}!')
+    raise NoTargetDirError(f'No suitable targetDir found in {raw_dirs}!')
 
 def unsatisfied_path_requirements(manifest: DotpkgManifest) -> Iterable[str]:
     for requirement in manifest.requires_on_path:

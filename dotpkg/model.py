@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dotpkg.constants import DOTPKG_MANIFEST_NAME
+from dotpkg.error import MissingDotpkgManifestError
 from dotpkg.manifest.dotpkg import DotpkgManifest
-from dotpkg.utils.log import error
 
 import json
 
@@ -30,7 +30,7 @@ class DotpkgRef:
 
     def read(self) -> Dotpkg:
         if not self.manifest_path.exists():
-            error(f"Missing dotpkg.json manifest for '{self.name}'!")
+            raise MissingDotpkgManifestError(f"Missing dotpkg.json manifest for '{self.name}'!")
 
         with open(str(self.manifest_path), 'r') as f:
             manifest = DotpkgManifest.from_dict(json.load(f))

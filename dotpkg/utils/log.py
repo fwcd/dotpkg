@@ -13,7 +13,6 @@ def message(msg: str, color: str):
 
 def error(msg: str):
     message(msg, RED_COLOR)
-    sys.exit(1)
 
 def warn(msg: str):
     message(msg, YELLOW_COLOR)
