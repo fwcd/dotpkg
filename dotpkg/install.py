@@ -132,7 +132,8 @@ def install(pkg: Dotpkg, opts: Options):
 
             if target_path.is_symlink() or target_path.exists():
                 if should_copy:
-                    if path_digest(target_path) == path_digest(src_path):
+                    legacy_order = install_manifest.version <= 3
+                    if path_digest(target_path, legacy_order=legacy_order) == path_digest(src_path, legacy_order=legacy_order):
                         note(f'Skipping {target_path} (target and src hashes match)')
                         record_paths()
                         continue
@@ -243,7 +244,8 @@ def uninstall(pkg: Dotpkg, opts: Options):
         if install and not isinstance(install, InstallsV1Manifest.InstallsEntry) and not isinstance(install, InstallsV2Manifest.InstallsEntry):
             checksums = install.checksums
         else:
-            checksums = [path_digest(src_path) if src_path else None for src_path, _ in paths]
+            legacy_order = install_manifest.version <= 3
+            checksums = [path_digest(src_path, legacy_order=legacy_order) if src_path else None for src_path, _ in paths]
 
         for (src_path, target_path), checksum in zip_longest(paths, checksums):
             if not target_path:
@@ -271,7 +273,8 @@ def uninstall(pkg: Dotpkg, opts: Options):
                     warn(f'Skipping {target_path} (file does not exist)')
                     continue
 
-                target_checksum = path_digest(target_path)
+                legacy_order = install_manifest.version <= 3
+                target_checksum = path_digest(target_path, legacy_order=legacy_order)
 
                 if target_checksum != checksum:
                     note(f'Skipping {target_path} (target checksum {target_checksum} != {checksum})')
