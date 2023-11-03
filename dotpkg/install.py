@@ -256,6 +256,10 @@ def uninstall(pkg: Dotpkg, opts: Options):
                 if not checksum:
                     warn(f'Skipping {target_path} (missing checksum)')
                     continue
+                
+                if not target_path.exists():
+                    warn(f'Skipping {target_path} (file does not exist)')
+                    continue
 
                 target_checksum = path_digest(target_path)
 

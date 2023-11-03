@@ -33,7 +33,9 @@ def hash_dir(path: Path, hash: Hash):
         hash_path(child, hash)
 
 def hash_path(path: Path, hash: Hash):
-    if path.is_dir():
+    if not path.exists():
+        warn(f'Path {path} does not exist and thus cannot be hashed.')
+    elif path.is_dir():
         hash_dir(path, hash)
     elif path.is_file():
         hash_file(path, hash)
