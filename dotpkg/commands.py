@@ -68,7 +68,7 @@ def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
         pkg = ref.read()
         name = pkg.manifest.name
 
-        if refs.is_batch and (skip_reason := batch_skip_reason(pkg.manifest)):
+        if refs.is_batch and (skip_reason := batch_skip_reason(pkg.manifest, opts)):
             warn(f'Skipping {name} ({skip_reason})')
             continue
 
