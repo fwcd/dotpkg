@@ -273,12 +273,14 @@ def uninstall(pkg: Dotpkg, opts: Options):
                     warn(f'Skipping {target_path} (file does not exist)')
                     continue
 
-                legacy_order = install_manifest.version <= 3
-                target_checksum = path_digest(target_path, legacy_order=legacy_order)
+                if install_manifest.version >= 4 or not target_path.is_dir():
+                    target_checksum = path_digest(target_path)
 
-                if target_checksum != checksum:
-                    note(f'Skipping {target_path} (target checksum {target_checksum} != {checksum})')
-                    continue
+                    if target_checksum != checksum:
+                        note(f'Skipping {target_path} (target checksum {target_checksum} != {checksum})')
+                        continue
+                else:
+                    warn(f'Ignoring checksum for {target_path} since the legacy directory hashes (which were generated in non-deterministic order) are unreliable, unfortunately.')
             else:
                 if not target_path.is_symlink():
                     note(f'Skipping {target_path} (not a symlink)')
