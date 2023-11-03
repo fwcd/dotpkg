@@ -36,7 +36,7 @@ class TestInstallManifestUpgrade(unittest.TestCase):
                         str(home.path / 'file.txt'),
                     ],
                     checksums=[
-                        '1d17608651772e002f2e4d0ac604d957b5b7928b6a01fc22476bf0d4acb05d79',
+                        'da0693c19c5165be4ee984300017532d43a02dd40d62058e982cd5234229fc43',
                         'cc4fafa4c90b4e4c08ade61acfa63add6a3fc31aa58d3f217eb199f557512e2a',
                     ]
                 ))

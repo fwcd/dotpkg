@@ -27,24 +27,32 @@ def hash_file(path: Path, hash: Hash):
         while n := f.readinto(mv):
             hash.update(mv[:n])
 
-def hash_dir(path: Path, hash: Hash):
-    for child in path.iterdir():
+# TODO: Abstract out HashOptions or similar
+
+def hash_dir(path: Path, hash: Hash, legacy_order: bool=False):
+    childs = path.iterdir()
+    # For backwards compatibility with manifest version 3 we preserve the
+    # ability to use the non-deterministic, os-dependent order (which happens to
+    # be stable on macOS, but not on Linux).
+    if not legacy_order:
+        childs = sorted(childs)
+    for child in childs:
         hash.update(path.name.encode('utf-8'))
         hash_path(child, hash)
 
-def hash_path(path: Path, hash: Hash):
+def hash_path(path: Path, hash: Hash, legacy_order: bool=False):
     if not path.exists():
         warn(f'Path {path} does not exist and thus cannot be hashed.')
     elif path.is_dir():
-        hash_dir(path, hash)
+        hash_dir(path, hash, legacy_order=legacy_order)
     elif path.is_file():
         hash_file(path, hash)
     else:
         warn(f'Encountered strange path {path} that is neither a file nor directory (thus cannot be hashed)')
 
-def path_digest(path: Path) -> str:
+def path_digest(path: Path, legacy_order: bool=False) -> str:
     hash = hashlib.sha256()
-    hash_path(path, hash)
+    hash_path(path, hash, legacy_order=legacy_order)
     return hash.hexdigest()
 
 def copy(src_path: Path, target_path: Path, opts: Options):

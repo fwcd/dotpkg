@@ -10,6 +10,7 @@ from dotpkg.manifest.installs import InstallsManifest
 from dotpkg.manifest.installs_v1 import InstallsV1Manifest
 from dotpkg.manifest.installs_v2 import InstallsV2Manifest
 from dotpkg.manifest.installs_v3 import InstallsV3Manifest
+from dotpkg.manifest.installs_v4 import InstallsV4Manifest
 from dotpkg.model import Dotpkg
 from dotpkg.options import Options
 from dotpkg.resolve import find_link_candidates, find_target_dir, resolve_ignores, resolve_manifest_str
@@ -41,6 +42,7 @@ def read_install_manifest(opts: Options) -> InstallsManifest:
                 case 1: return InstallsV1Manifest.from_dict(raw_manifest)
                 case 2: return InstallsV2Manifest.from_dict(raw_manifest)
                 case 3: return InstallsV3Manifest.from_dict(raw_manifest)
+                case 4: return InstallsV4Manifest.from_dict(raw_manifest)
                 case _: raise InvalidManifestError(f'Invalid manifest version {version}')
     except FileNotFoundError:
         return CurrentInstallsManifest()
@@ -197,6 +199,13 @@ def install(pkg: Dotpkg, opts: Options):
                 )
             case 3:
                 installs[install_key] = InstallsV3Manifest.InstallsEntry(
+                    target_dir=str(target_dir),
+                    src_paths=[str(path) for path in src_paths],
+                    paths=[str(path) for path in installed_paths],
+                    checksums=[path_digest(path, legacy_order=True) for path in installed_paths],
+                )
+            case 4:
+                installs[install_key] = InstallsV4Manifest.InstallsEntry(
                     target_dir=str(target_dir),
                     src_paths=[str(path) for path in src_paths],
                     paths=[str(path) for path in installed_paths],

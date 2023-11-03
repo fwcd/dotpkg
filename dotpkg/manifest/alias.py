@@ -1,4 +1,4 @@
-from dotpkg.manifest.installs_v3 import InstallsV3Manifest
+from dotpkg.manifest.installs_v4 import InstallsV4Manifest
 
-CurrentInstallsManifest = InstallsV3Manifest
+CurrentInstallsManifest = InstallsV4Manifest
 CurrentInstallsEntry = CurrentInstallsManifest.InstallsEntry
