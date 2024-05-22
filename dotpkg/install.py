@@ -237,7 +237,7 @@ def uninstall(pkg: Dotpkg, opts: Options):
         should_copy = pkg.manifest.copy
 
         if install and not isinstance(install, InstallsV1Manifest.InstallsEntry):
-            paths = list(zip_longest(map(Path, install.src_paths), map(Path, install.paths), fillvalue=None))
+            paths = list(zip_longest(map(Path, install.src_paths), map(Path, install.paths)))
         else:
             paths = list(find_link_candidates(pkg.path, target_dir))
         
