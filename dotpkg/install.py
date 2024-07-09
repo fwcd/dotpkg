@@ -38,12 +38,11 @@ def read_install_manifest(opts: Options) -> InstallsManifest:
         with open(path, 'r') as f:
             raw_manifest = json.load(f)
             version = raw_manifest.get('version', 0)
-            match version:
-                case 1: return InstallsV1Manifest.from_dict(raw_manifest)
-                case 2: return InstallsV2Manifest.from_dict(raw_manifest)
-                case 3: return InstallsV3Manifest.from_dict(raw_manifest)
-                case 4: return InstallsV4Manifest.from_dict(raw_manifest)
-                case _: raise InvalidManifestError(f'Invalid manifest version {version}')
+            if version == 1: return InstallsV1Manifest.from_dict(raw_manifest)
+            elif version == 2: return InstallsV2Manifest.from_dict(raw_manifest)
+            elif version == 3: return InstallsV3Manifest.from_dict(raw_manifest)
+            elif version == 4: return InstallsV4Manifest.from_dict(raw_manifest)
+            else: raise InvalidManifestError(f'Invalid manifest version {version}')
     except FileNotFoundError:
         return CurrentInstallsManifest()
 
@@ -187,25 +186,24 @@ def install(pkg: Dotpkg, opts: Options):
     run_script('postinstall', pkg, opts)
 
     if opts.update_install_manifest:
-        match install_manifest.version:
-            case 1:
-                installs[install_key] = InstallsV1Manifest.InstallsEntry(
-                    target_dir=str(target_dir),
-                )
-            case 2:
+        if install_manifest.version == 1:
+            installs[install_key] = InstallsV1Manifest.InstallsEntry(
+                target_dir=str(target_dir),
+            )
+        elif install_manifest.version == 2:
                 installs[install_key] = InstallsV2Manifest.InstallsEntry(
                     target_dir=str(target_dir),
                     src_paths=[str(path) for path in src_paths],
                     paths=[str(path) for path in installed_paths],
                 )
-            case 3:
+        elif install_manifest.version == 3:
                 installs[install_key] = InstallsV3Manifest.InstallsEntry(
                     target_dir=str(target_dir),
                     src_paths=[str(path) for path in src_paths],
                     paths=[str(path) for path in installed_paths],
                     checksums=[path_digest(path, legacy_order=True) for path in installed_paths],
                 )
-            case 4:
+        elif install_manifest.version == 4:
                 installs[install_key] = InstallsV4Manifest.InstallsEntry(
                     target_dir=str(target_dir),
                     src_paths=[str(path) for path in src_paths],

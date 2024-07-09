@@ -11,8 +11,8 @@ from dotpkg.options import Options
 from dotpkg.utils.prompt import confirm
 from dotpkg.utils.log import warn, error
 
-if sys.version_info < (3, 10):
-    print('Python version >= 3.10 is required!')
+if sys.version_info < (3, 9):
+    print('Python version >= 3.9 is required!')
     sys.exit(1)
 
 # CLI
