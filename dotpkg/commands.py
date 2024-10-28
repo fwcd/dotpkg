@@ -1,13 +1,15 @@
 from pathlib import Path
 
 from dotpkg.constants import IGNORED_NAMES
+from dotpkg.error import MissingDotpkgManifestError
 from dotpkg.install import install, install_manifest_path, read_install_manifest, uninstall
 from dotpkg.resolve import batch_skip_reason
-from dotpkg.model import DotpkgRef, DotpkgRefs
+from dotpkg.manifest.dotpkg import DotpkgManifest
+from dotpkg.model import Dotpkg, DotpkgRef, DotpkgRefs
 from dotpkg.options import Options
 from dotpkg.utils.file import move
 from dotpkg.utils.log import info, warn
-from dotpkg.utils.prompt import confirm
+from dotpkg.utils.prompt import confirm, prompt
 
 import sys
 
@@ -65,7 +67,17 @@ def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
         sys.exit(0)
 
     for ref in refs:
-        pkg = ref.read()
+        try:
+            pkg = ref.read()
+        except MissingDotpkgManifestError:
+            response = prompt(f'No manifest found for {ref.name}, should we attempt to uninstall anyway using a fallback manifest?', ['uninstall', 'skip'], 'uninstall', opts)
+            if response == 'skip':
+                warn(f'Skipping {name} as requested')
+                continue
+
+            copy = confirm('Was the package a copy package?', opts)
+            pkg = Dotpkg(path=ref.path, manifest=DotpkgManifest(name=ref.name, copy=copy))
+
         name = pkg.manifest.name
 
         if refs.is_batch and (skip_reason := batch_skip_reason(pkg.manifest, opts)):
