@@ -72,7 +72,7 @@ def uninstall_cmd(raw_dotpkg_paths: list[str], opts: Options):
         except MissingDotpkgManifestError:
             response = prompt(f'No manifest found for {ref.name}, should we attempt to uninstall anyway using a fallback manifest?', ['uninstall', 'skip'], 'uninstall', opts)
             if response == 'skip':
-                warn(f'Skipping {name} as requested')
+                warn(f'Skipping {ref.name} as requested')
                 continue
 
             copy = confirm('Was the package a copy package?', opts)
